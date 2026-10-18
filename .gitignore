@@ -1,0 +1,44 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Environment / secrets
+.env
+*.env
+!*.env.example
+
+# Local config
+config/local.*
+
+# Data
+data/raw/*
+data/generated/*
+data/exports/*
+!data/raw/.gitkeep
+!data/generated/.gitkeep
+!data/exports/.gitkeep
+
+# SQL Server / backups
+*.mdf
+*.ldf
+*.bak
+*.trn
+
+# Excel temp
+~$*.xlsx
+~$*.xlsm
+
+# Power BI temp
+*.tmp
+
+# Logs
+*.log
+logs/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
