@@ -84,12 +84,110 @@ def require_source_file(source_dir: Path, name: str) -> Path:
     return path
 
 
-def first_id(source_dir: Path, filename: str, column: str = "Id") -> str:
-    path = require_source_file(source_dir, filename)
-    df = pd.read_csv(path, usecols=[column], nrows=1, dtype=str)
-    if df.empty or pd.isna(df.iloc[0][column]):
-        raise ValueError(f"Could not get {column} from {path}")
-    return str(df.iloc[0][column])
+def select_medicaid_payer(source_dir: Path) -> tuple[str, str]:
+    path = require_source_file(source_dir, "payers.csv")
+    payers = pd.read_csv(path, usecols=["Id", "NAME"], dtype=str)
+
+    matches = payers[
+        payers["NAME"].fillna("").str.strip().str.casefold().eq("medicaid")
+    ].copy()
+
+    if len(matches) != 1:
+        names = sorted(payers["NAME"].dropna().astype(str).unique().tolist())
+        raise ValueError(
+            "Expected exactly one Medicaid payer in payers.csv; "
+            f"found {len(matches)}. Available payer names: {names}"
+        )
+
+    row = matches.iloc[0]
+    return str(row["Id"]), str(row["NAME"])
+
+
+def select_inpatient_attribution(source_dir: Path) -> tuple[str, str, str, str]:
+    encounter_path = require_source_file(source_dir, "encounters.csv")
+    organization_path = require_source_file(source_dir, "organizations.csv")
+    provider_path = require_source_file(source_dir, "providers.csv")
+
+    encounters = pd.read_csv(
+        encounter_path,
+        usecols=["ORGANIZATION", "ENCOUNTERCLASS"],
+        dtype=str,
+    )
+    organizations = pd.read_csv(
+        organization_path,
+        usecols=["Id", "NAME"],
+        dtype=str,
+    )
+    providers = pd.read_csv(
+        provider_path,
+        usecols=["Id", "ORGANIZATION", "NAME"],
+        dtype=str,
+    )
+
+    inpatient = encounters[
+        encounters["ENCOUNTERCLASS"]
+        .fillna("")
+        .str.strip()
+        .str.casefold()
+        .eq("inpatient")
+    ].copy()
+
+    counts = (
+        inpatient["ORGANIZATION"]
+        .dropna()
+        .value_counts()
+        .rename_axis("organization_id")
+        .reset_index(name="inpatient_encounters")
+    )
+
+    candidates = counts.merge(
+        organizations.rename(columns={"Id": "organization_id", "NAME": "organization_name"}),
+        on="organization_id",
+        how="left",
+    )
+
+    provider_orgs = set(providers["ORGANIZATION"].dropna().astype(str))
+    candidates = candidates[
+        candidates["organization_id"].astype(str).isin(provider_orgs)
+    ].copy()
+
+    if candidates.empty:
+        raise ValueError(
+            "Could not find an organization used for inpatient encounters that also has a provider."
+        )
+
+    # Prefer an organization whose name clearly looks hospital-based. If no name
+    # matches, fall back to the highest-volume organization actually used for
+    # inpatient encounters. Either way, the choice is deterministic.
+    hospital_name = candidates["organization_name"].fillna("").str.contains(
+        r"hospital|medical center|medical centre", case=False, regex=True
+    )
+    preferred = candidates[hospital_name].copy()
+    if preferred.empty:
+        preferred = candidates.copy()
+
+    selected_org = preferred.sort_values(
+        ["inpatient_encounters", "organization_name", "organization_id"],
+        ascending=[False, True, True],
+        kind="stable",
+    ).iloc[0]
+
+    organization_id = str(selected_org["organization_id"])
+    organization_name = str(selected_org["organization_name"])
+
+    org_providers = providers[
+        providers["ORGANIZATION"].astype(str).eq(organization_id)
+    ].copy()
+    if org_providers.empty:
+        raise ValueError(f"No provider found for selected organization {organization_id}")
+
+    selected_provider = org_providers.sort_values(
+        ["NAME", "Id"], kind="stable"
+    ).iloc[0]
+
+    provider_id = str(selected_provider["Id"])
+    provider_name = str(selected_provider["NAME"])
+    return organization_id, organization_name, provider_id, provider_name
 
 
 def blank_row(columns: list[str]) -> dict[str, object]:
@@ -181,9 +279,19 @@ def main() -> None:
     output_dir = project_root / "data" / "generated" / "fuh_fixtures"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    organization_id = first_id(source_dir, "organizations.csv")
-    provider_id = first_id(source_dir, "providers.csv")
-    payer_id = first_id(source_dir, "payers.csv")
+    payer_id, payer_name = select_medicaid_payer(source_dir)
+    (
+        organization_id,
+        organization_name,
+        provider_id,
+        provider_name,
+    ) = select_inpatient_attribution(source_dir)
+
+    print("Controlled fixture source attribution")
+    print(f"Payer        : {payer_name} ({payer_id})")
+    print(f"Organization : {organization_name} ({organization_id})")
+    print(f"Provider     : {provider_name} ({provider_id})")
+    print()
 
     patients: list[dict[str, object]] = []
     encounters: list[dict[str, object]] = []
