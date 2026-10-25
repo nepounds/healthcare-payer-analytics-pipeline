@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from uuid import uuid4
 
@@ -80,6 +81,14 @@ TRUNCATE_ORDER = [
     "raw.organization",
     "raw.payer",
 ]
+
+
+class SourceLoadError(RuntimeError):
+    """Load failure that preserves the number of rows already committed."""
+
+    def __init__(self, message: str, *, loaded_rows: int) -> None:
+        super().__init__(message)
+        self.loaded_rows = loaded_rows
 
 
 def utc_now() -> datetime:
@@ -178,9 +187,13 @@ def csv_header(path: Path) -> list[str]:
         return next(reader)
 
 
+@lru_cache(maxsize=None)
 def count_csv_rows(path: Path) -> int:
+    """Count parsed CSV records, excluding the header and truly blank lines."""
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        return max(sum(1 for _ in handle) - 1, 0)
+        reader = csv.reader(handle)
+        next(reader, None)
+        return sum(1 for row in reader if row)
 
 
 def truncate_raw(cursor: pyodbc.Cursor) -> None:
@@ -261,78 +274,87 @@ def insert_csv(
     fixture_flag: int,
     chunk_size: int,
 ) -> int:
-    schema, table_name = table.split(".", 1)
-    cursor = conn.cursor()
-    target_cols = sql_columns(cursor, schema, table_name)
-    table_source_cols = [c for c in target_cols if c not in METADATA_COLUMNS]
-
-    header = csv_header(path)
-    header_without_fixture = [c for c in header if c != "synthetic_fixture_flag"]
-
-    # Synthea's CSV schema can vary slightly by release.  Raw tables may keep
-    # nullable compatibility columns (for example, provider.NPI) that are not
-    # present in the pinned source version.  Every CSV column must exist in the
-    # SQL table, but nullable SQL-only columns are allowed and remain NULL.
-    unknown_csv_cols = [c for c in header_without_fixture if c not in table_source_cols]
-    if unknown_csv_cols:
-        raise RuntimeError(
-            f"Header mismatch for {path.name} -> {table}.\n"
-            f"CSV contains columns not present in SQL: {unknown_csv_cols}\n"
-            f"CSV: {header_without_fixture}\n"
-            f"SQL: {table_source_cols}"
-        )
-
-    source_cols = header_without_fixture
-    sql_only_cols = [c for c in table_source_cols if c not in source_cols]
-    if sql_only_cols:
-        print(
-            "    Note: nullable SQL-only compatibility columns will remain NULL: "
-            + ", ".join(sql_only_cols)
-        )
-
-    insert_cols = source_cols + METADATA_COLUMNS
-    col_sql = ", ".join(f"[{c}]" for c in insert_cols)
-    placeholders = ", ".join("?" for _ in insert_cols)
-    insert_sql = f"INSERT INTO {table} ({col_sql}) VALUES ({placeholders});"
-
     loaded = 0
-    loaded_at = utc_now()
-    cursor.fast_executemany = True
 
-    dtype_map = {column: str for column in header}
-    for chunk in pd.read_csv(
-        path,
-        dtype=dtype_map,
-        keep_default_na=False,
-        chunksize=chunk_size,
-        encoding="utf-8-sig",
-    ):
-        if "synthetic_fixture_flag" in chunk.columns:
-            flags = chunk["synthetic_fixture_flag"].astype(str).str.strip()
-            if not flags.isin({"1"}).all():
-                raise RuntimeError(f"Fixture file contains a non-1 synthetic_fixture_flag: {path}")
-            chunk = chunk.drop(columns=["synthetic_fixture_flag"])
+    try:
+        schema, table_name = table.split(".", 1)
+        cursor = conn.cursor()
+        target_cols = sql_columns(cursor, schema, table_name)
+        table_source_cols = [c for c in target_cols if c not in METADATA_COLUMNS]
 
-        # Keep raw source blanks as empty strings. Typing/NULL normalization happens in core.
-        rows = [
-            tuple(row)
-            + (
-                fixture_flag,
-                source_name,
-                path.name,
-                run_id,
-                loaded_at,
+        header = csv_header(path)
+        header_without_fixture = [c for c in header if c != "synthetic_fixture_flag"]
+
+        # Synthea's CSV schema can vary slightly by release. Raw tables may keep
+        # nullable compatibility columns (for example, provider.NPI) that are not
+        # present in the pinned source version. Every CSV column must exist in the
+        # SQL table, but nullable SQL-only columns are allowed and remain NULL.
+        unknown_csv_cols = [c for c in header_without_fixture if c not in table_source_cols]
+        if unknown_csv_cols:
+            raise RuntimeError(
+                f"Header mismatch for {path.name} -> {table}.\n"
+                f"CSV contains columns not present in SQL: {unknown_csv_cols}\n"
+                f"CSV: {header_without_fixture}\n"
+                f"SQL: {table_source_cols}"
             )
-            for row in chunk[source_cols].itertuples(index=False, name=None)
-        ]
 
-        cursor.executemany(insert_sql, rows)
-        conn.commit()
-        loaded += len(rows)
-        print(f"    {loaded:>10,} rows", end="\r", flush=True)
+        source_cols = header_without_fixture
+        sql_only_cols = [c for c in table_source_cols if c not in source_cols]
+        if sql_only_cols:
+            print(
+                "    Note: nullable SQL-only compatibility columns will remain NULL: "
+                + ", ".join(sql_only_cols)
+            )
 
-    print(f"    {loaded:>10,} rows")
-    return loaded
+        insert_cols = source_cols + METADATA_COLUMNS
+        col_sql = ", ".join(f"[{c}]" for c in insert_cols)
+        placeholders = ", ".join("?" for _ in insert_cols)
+        insert_sql = f"INSERT INTO {table} ({col_sql}) VALUES ({placeholders});"
+
+        loaded_at = utc_now()
+        cursor.fast_executemany = True
+
+        dtype_map = {column: str for column in header}
+        for chunk in pd.read_csv(
+            path,
+            dtype=dtype_map,
+            keep_default_na=False,
+            chunksize=chunk_size,
+            encoding="utf-8-sig",
+        ):
+            if "synthetic_fixture_flag" in chunk.columns:
+                flags = chunk["synthetic_fixture_flag"].astype(str).str.strip()
+                if not flags.isin({"1"}).all():
+                    raise RuntimeError(
+                        f"Fixture file contains a non-1 synthetic_fixture_flag: {path}"
+                    )
+                chunk = chunk.drop(columns=["synthetic_fixture_flag"])
+
+            # Keep raw source blanks as empty strings. Typing/NULL normalization happens in core.
+            rows = [
+                tuple(row)
+                + (
+                    fixture_flag,
+                    source_name,
+                    path.name,
+                    run_id,
+                    loaded_at,
+                )
+                for row in chunk[source_cols].itertuples(index=False, name=None)
+            ]
+
+            cursor.executemany(insert_sql, rows)
+            conn.commit()
+            loaded += len(rows)
+            print(f"    {loaded:>10,} rows", end="\r", flush=True)
+
+        print(f"    {loaded:>10,} rows")
+        return loaded
+
+    except Exception as exc:
+        # Prior chunks are committed individually, so preserve that count in the
+        # audit row if a later chunk or validation step fails.
+        raise SourceLoadError(str(exc), loaded_rows=loaded) from exc
 
 
 def load_one_source(
@@ -359,7 +381,24 @@ def load_one_source(
             fixture_flag=fixture_flag,
             chunk_size=chunk_size,
         )
-        status = "SUCCESS" if loaded == expected else "ROW_MISMATCH"
+    except SourceLoadError as exc:
+        write_audit(
+            conn.cursor(),
+            run_id=run_id,
+            target_table=table,
+            source_name=source_name,
+            source_file=path,
+            expected_rows=expected,
+            loaded_rows=exc.loaded_rows,
+            started_at=started,
+            status="FAILED",
+            error=str(exc)[:4000],
+        )
+        conn.commit()
+        raise
+
+    if loaded != expected:
+        error = f"Row-count mismatch for {path}: expected {expected:,}, loaded {loaded:,}."
         write_audit(
             conn.cursor(),
             run_id=run_id,
@@ -369,29 +408,25 @@ def load_one_source(
             expected_rows=expected,
             loaded_rows=loaded,
             started_at=started,
-            status=status,
+            status="ROW_MISMATCH",
+            error=error[:4000],
         )
         conn.commit()
-        if loaded != expected:
-            raise RuntimeError(
-                f"Row-count mismatch for {path}: expected {expected:,}, loaded {loaded:,}."
-            )
-        return loaded
-    except Exception as exc:
-        write_audit(
-            conn.cursor(),
-            run_id=run_id,
-            target_table=table,
-            source_name=source_name,
-            source_file=path,
-            expected_rows=expected,
-            loaded_rows=0,
-            started_at=started,
-            status="FAILED",
-            error=str(exc)[:4000],
-        )
-        conn.commit()
-        raise
+        raise RuntimeError(error)
+
+    write_audit(
+        conn.cursor(),
+        run_id=run_id,
+        target_table=table,
+        source_name=source_name,
+        source_file=path,
+        expected_rows=expected,
+        loaded_rows=loaded,
+        started_at=started,
+        status="SUCCESS",
+    )
+    conn.commit()
+    return loaded
 
 
 def load_manifest(conn: pyodbc.Connection, run_id: str, chunk_size: int) -> int:
