@@ -1,8 +1,12 @@
-# v0.1 Build Plan
+# Quality Performance Milestone Build Plan
 
-## Release objective
+## Milestone objective
 
-Ship one complete FUH-focused payer-quality project before expanding scope.
+Build the first complete business-facing slice of the Healthcare Payer Analytics Pipeline around payer quality performance.
+
+The sequence is optimized to make the project analytically useful early without removing any later payer-platform scope.
+
+The milestone ends with a reproducible SQL Server quality workflow, Excel reconciliation, Power BI reporting, and portfolio-ready documentation. Development then continues into `docs/roadmap/v0.2bigdaddy/`.
 
 ## Phase 0 — Environment
 
@@ -27,45 +31,53 @@ Deliverables:
 - Python loader;
 - `raw` tables;
 - load metadata;
-- row-count checks.
+- row-count checks;
+- deterministic FUH fixture generation.
 
 Practice focus:
 
 - Python file handling;
 - database connection;
 - bulk loading;
-- basic data profiling.
+- basic data profiling;
+- reproducible source generation.
 
-Exit condition: raw load can be rerun from scratch with consistent row counts.
+Exit condition: raw load can be rerun from scratch with consistent row counts and fixture expectations.
 
 ## Phase 2 — Core relational model
 
 Deliverables:
 
 - member;
+- payer;
 - enrollment span;
 - encounter;
+- condition;
 - claim;
-- claim line;
-- claim diagnosis;
+- claim line / claim transaction representation;
+- claim diagnosis where supported by source structure;
 - provider;
-- provider location;
-- date/reference tables.
+- organization/provider-location representation where useful;
+- date/reference tables needed by the quality model;
+- keys, constraints, indexes, and data-quality checks appropriate to each grain.
 
 Practice focus:
 
+- data typing and normalization;
 - `INNER JOIN`;
 - `LEFT JOIN`;
 - null checks;
 - duplicate detection;
 - keys and relationships;
+- gaps-and-islands enrollment logic;
 - `GROUP BY`;
 - `HAVING`;
-- `COUNT(DISTINCT)`.
+- `COUNT(DISTINCT)`;
+- source-to-core row-count reconciliation.
 
-Exit condition: keys, grains, row counts, and relationships are documented and tested.
+Exit condition: keys, grains, row counts, lineage, and relationships are documented and tested; source-to-core transformations can be rerun without unexplained loss or duplication.
 
-## Phase 3 — FUH logic
+## Phase 3 — FUH performance-measure logic
 
 Deliverables:
 
@@ -78,7 +90,9 @@ Deliverables:
 - first qualifying follow-up;
 - 7-day and 30-day flags;
 - candidate-discharge audit table with eligibility, exclusion, and denominator flags;
-- gap view.
+- open-gap view;
+- summary output;
+- controlled-fixture validation.
 
 Practice focus:
 
@@ -88,11 +102,38 @@ Practice focus:
 - `DATEADD`;
 - `DATEDIFF`;
 - `LEFT JOIN ... IS NULL`;
-- readable multi-step logic.
+- readable multi-step business logic;
+- auditability and reproducibility.
 
-Exit condition: all boundary test cases pass.
+Exit condition: all boundary test cases pass and the deterministic fixture package returns the documented expected FUH-7 and FUH-30 results.
 
-## Phase 4 — Excel reconciliation
+## Phase 4 — Quality analysis and reporting layer
+
+Deliverables:
+
+- monthly and/or quarterly FUH trend output;
+- denominator/numerator volume reporting;
+- open/missed follow-up gap analysis;
+- age/population stratification;
+- payer/coverage stratification where analytically meaningful;
+- physical-health condition/comorbidity context for the FUH population;
+- focused pharmacy integration by promoting the relevant Synthea medication source through `raw`/`core` and producing at least one documented pharmacy-related analysis;
+- report-ready SQL views/tables with clear source lineage;
+- references to source objects and assumptions sufficient to reproduce reported results.
+
+Practice focus:
+
+- information synthesis;
+- patterns and trends;
+- population analysis;
+- quality-improvement-oriented gap identification;
+- integrating clinical, coverage, and pharmacy context;
+- user-facing report design;
+- reproducible analytical outputs.
+
+Exit condition: SQL Server can reproduce the principal quality KPIs, trends, population breakdowns, and gap outputs from documented source objects without manual spreadsheet business logic.
+
+## Phase 5 — Excel reconciliation
 
 Deliverables:
 
@@ -103,22 +144,24 @@ Deliverables:
 - exception column;
 - pivot summary;
 - slicers;
-- conditional formatting.
+- conditional formatting;
+- at least one deliberate discrepancy test proving the workbook surfaces an error.
 
 Practice focus:
 
 - Power Query clean/merge/refresh;
 - XLOOKUP;
-- INDEX/MATCH;
+- INDEX/MATCH where useful for practice;
 - SUMIFS;
 - COUNTIFS;
 - IFERROR;
 - date functions;
-- pivots.
+- pivots;
+- reconciliation and exception handling.
 
-Exit condition: deliberate test discrepancies are visible and explainable.
+Exit condition: deliberate test discrepancies are visible and explainable, and a clean run reconciles to the authoritative SQL outputs.
 
-## Phase 5 — Power BI
+## Phase 6 — Power BI Quality report
 
 Deliverables:
 
@@ -128,6 +171,8 @@ Deliverables:
 - trend visual;
 - denominator/numerator cards;
 - gap table;
+- population/stratification visuals;
+- physical-health/pharmacy context where useful;
 - useful filters/slicers;
 - simple reusable theme.
 
@@ -141,9 +186,11 @@ Practice focus:
 - DAX measures;
 - report formatting.
 
-Exit condition: a hiring manager can understand the business problem and result in roughly two minutes.
+Power BI may aggregate and present authoritative SQL results, but it should not recreate the FUH eligibility algorithm.
 
-## Phase 6 — Publish
+Exit condition: a hiring manager can understand the business problem, measure performance, major trends, and actionable gaps in roughly two minutes.
+
+## Phase 7 — Quality Performance milestone release
 
 Deliverables:
 
@@ -154,12 +201,15 @@ Deliverables:
 - data dictionary;
 - run instructions;
 - limitations;
+- test/reconciliation evidence;
 - clean Git history/repository structure.
 
-Exit condition: public GitHub repository works as a portfolio artifact.
+Exit condition: the Quality Performance milestone works as a stand-alone portfolio artifact and every major technical/analytical claim made about it is supported by a visible project artifact.
 
-## Stop condition
+## Transition condition — continue into the expanded payer platform
 
-After publication, stop development briefly and evaluate whether v0.2bigdaddy adds enough career value to justify its scope.
+The Quality Performance milestone is a checkpoint, **not a project stop condition**.
 
-Do not expand simply because additional features are available.
+After the milestone is stable, continue into `docs/roadmap/v0.2bigdaddy/` in the documented order. Later phases retain IET, claims operations, finance, network analytics, scaling, governance, and automation.
+
+Do not interrupt the Quality milestone with later-domain work unless the dependency is required for a current deliverable.

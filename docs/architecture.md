@@ -1,10 +1,10 @@
-# v0.1 Architecture
+# Quality Performance Milestone Architecture
 
 ## Design principle
 
-v0.1 uses the smallest architecture that still demonstrates professional separation of concerns.
+The Quality Performance milestone uses the smallest architecture that still demonstrates professional separation of concerns, reproducibility, and a realistic payer-analytics workflow.
 
-The database contains four schemas:
+The database contains four active schemas:
 
 ```text
 raw
@@ -13,36 +13,46 @@ ref
 measure
 ```
 
-Additional schemas are added later only when there is enough complexity to justify them.
+The expanded payer platform later introduces additional schemas such as `stg`, `mart`, and `audit` when their complexity is justified.
 
 ## End-to-end flow
 
 ```text
-Synthetic source data
-        |
-        v
-Python generation/import
-        |
-        v
-raw schema
-        |
-        v
-SQL standardization and relational modeling
-        |
-        v
-core + ref schemas
-        |
-        v
-FUH-style measure logic
-        |
-        v
-measure.fuh_episode_detail
-        |
-        +----------------------+
-        |                      |
-        v                      v
-Excel reconciliation      Power BI Quality page
+Synthetic source data + deterministic FUH fixtures
+                    |
+                    v
+          Python generation/import
+                    |
+                    v
+                raw schema
+                    |
+                    v
+     SQL typing + relational modeling
+                    |
+                    v
+             core + ref schemas
+                    |
+                    v
+        FUH-style measure logic
+                    |
+                    v
+       measure.fuh_episode_detail
+                    |
+          +---------+----------+
+          |                    |
+          v                    v
+ Quality analysis views    Open-gap output
+ trends / populations      actionable misses
+          |                    |
+          +---------+----------+
+                    |
+          +---------+----------+
+          |                    |
+          v                    v
+ Excel reconciliation   Power BI Quality report
 ```
+
+A focused medication/pharmacy source is added during the Quality analysis phase and linked to the same member-centered core model. Physical-health context is derived from the condition data already carried through the relational layer.
 
 ## Schema responsibilities
 
@@ -50,16 +60,21 @@ Excel reconciliation      Power BI Quality page
 
 Purpose: preserve source-shaped records with minimal modification.
 
-Typical tables:
+Typical/current source tables include:
 
 - `raw.patient`
 - `raw.encounter`
-- `raw.claim`
-- `raw.claim_line`
 - `raw.condition`
+- `raw.claim`
+- `raw.claim_transaction`
 - `raw.provider`
 - `raw.organization`
-- `raw.payer_transition` or equivalent enrollment source
+- `raw.payer`
+- `raw.payer_transition`
+
+Quality-milestone extension:
+
+- a Synthea medication source promoted into `raw` when the pharmacy analysis is implemented.
 
 Rules:
 
@@ -71,18 +86,21 @@ Rules:
 
 ### `core`
 
-Purpose: provide cleaned, payer-oriented relational entities.
+Purpose: provide cleaned, payer-oriented relational entities with explicit grain and stable relationships.
 
-Initial tables:
+Quality-milestone entities include:
 
 - `core.member`
+- `core.payer`
 - `core.enrollment_span`
 - `core.encounter`
+- `core.condition`
 - `core.claim`
-- `core.claim_line`
-- `core.claim_diagnosis`
+- claim-line/transaction representation appropriate to the source;
+- claim-diagnosis representation where supported;
 - `core.provider`
-- `core.provider_location`
+- organization/provider-location representation where useful;
+- medication/pharmacy representation when promoted during Phase 4.
 
 Rules:
 
@@ -91,13 +109,14 @@ Rules:
 - consistent data types;
 - normalized dates;
 - referential-integrity checks;
+- source-to-core reconciliation;
 - no FUH numerator/denominator flags.
 
 ### `ref`
 
 Purpose: centralize reusable definitions and lookup data.
 
-Initial tables:
+Initial tables may include:
 
 - `ref.date`
 - `ref.county`
@@ -110,13 +129,22 @@ The project should prefer reference-driven logic over long hardcoded code lists 
 
 ### `measure`
 
-Purpose: hold measure-specific analytical results.
+Purpose: hold measure-specific and report-ready quality analytical results.
 
-Initial objects:
+Core FUH objects:
 
 - `measure.fuh_episode_detail`
 - `measure.fuh_summary`
 - `measure.fuh_open_gap`
+
+Additional Quality analysis objects may expose:
+
+- monthly/quarterly trends;
+- population stratifications;
+- physical-health/comorbidity summaries;
+- focused pharmacy context.
+
+These may be tables or views depending on the need for persistence, auditability, and refresh behavior.
 
 ## Business-logic ownership
 
@@ -124,13 +152,15 @@ Initial objects:
 |---|---|
 | source ingestion | Python |
 | source cleanup and typing | SQL |
-| member/enrollment/claim modeling | SQL |
+| member/enrollment/claim/clinical modeling | SQL |
 | FUH business rules | SQL |
+| quality trend/population/gap analysis | SQL |
+| physical-health/pharmacy integration | SQL |
 | independent reconciliation | Excel |
 | visual aggregation and interaction | Power BI |
-| documentation of assumptions | Markdown |
+| documentation of assumptions/lineage | Markdown |
 
-Power BI may contain display-oriented DAX measures, but it should not recreate the FUH eligibility logic.
+Power BI may contain display-oriented DAX measures, but it should not recreate FUH eligibility logic.
 
 ## Why an episode table matters
 
@@ -142,7 +172,21 @@ The FUH denominator is derived from rows where `denominator_flag = 1`; numerator
 
 The **single canonical column list** for this table lives in [`data_dictionary.md`](data_dictionary.md#measurefuh_episode_detail). Do not maintain a second field definition here.
 
-This table is the bridge between computation, validation, and operational reporting.
+This table is the bridge between computation, validation, quality-gap analysis, and operational reporting.
+
+## Reproducibility and report lineage
+
+Report-ready outputs should be traceable back through:
+
+```text
+report visual / workbook result
+        -> measure/reporting object
+        -> core relational entity
+        -> raw source table
+        -> documented synthetic source or fixture
+```
+
+Assumptions, configured analysis dates, fixture flags, and pipeline/load identifiers should be retained wherever they materially affect reproducibility.
 
 ## Development scale
 
@@ -152,8 +196,10 @@ Do not scale to 50,000 until:
 
 1. the load succeeds repeatably;
 2. row counts reconcile;
-3. FUH test cases pass;
-4. Excel reconciliation is stable;
-5. the Power BI page refreshes correctly.
+3. core relationships are tested;
+4. FUH test cases pass;
+5. Quality analysis outputs are reproducible;
+6. Excel reconciliation is stable;
+7. the Power BI report refreshes correctly.
 
-At that point, scaling becomes a performance exercise rather than a logic-debugging exercise.
+At that point, scaling becomes a performance exercise rather than a logic-debugging exercise, and development continues into the expanded payer platform.

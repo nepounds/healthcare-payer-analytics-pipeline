@@ -1,10 +1,25 @@
 # v0.2bigdaddy — Expanded Payer Analytics Platform
 
-## Entry requirement
+## Relationship to the Quality Performance milestone
 
-**Do not begin this release until v0.1 is publicly shipped.**
+v0.2bigdaddy remains the full expansion plan for the Healthcare Payer Analytics Pipeline.
 
-v0.2bigdaddy is intentionally broader. It converts the narrow Quality/FUH project into a shared payer analytics platform with multiple business domains.
+The project roadmap has been **reordered, not reduced**. The current Quality Performance milestone is completed first because it creates the strongest end-to-end analyst workflow early. Once that milestone is stable, development continues here.
+
+A public release of the Quality milestone is recommended before major expansion, but publication itself is no longer an artificial blocker if the underlying milestone is already working, tested, reconciled, and documented.
+
+## Entry condition
+
+Begin expanded-platform work when the Quality Performance milestone has:
+
+- a tested core relational model;
+- working FUH-style episode and rate logic;
+- reproducible quality trend/population/gap outputs;
+- Excel reconciliation;
+- a working Power BI Quality report;
+- current documentation and assumptions.
+
+Do not use later-domain work to avoid finishing those foundations.
 
 ## Scope
 
@@ -14,7 +29,8 @@ One shared synthetic North Carolina Medicaid dataset supports four reporting dom
    - FUH-style approximation;
    - IET-style approximation;
    - measure trends;
-   - open quality gaps.
+   - open quality gaps;
+   - supporting population/clinical context.
 
 2. **Claims Operations**
    - denial rate;
@@ -40,7 +56,7 @@ One shared synthetic North Carolina Medicaid dataset supports four reporting dom
 
 Target approximately **50,000 synthetic members** across two to three years.
 
-Scale only after v0.1 logic is correct. Performance tuning is part of this release.
+Scale only after the Quality Performance milestone logic is correct. Performance tuning is part of this expanded-platform work.
 
 ## Architecture
 
@@ -56,7 +72,7 @@ mart
 audit
 ```
 
-The report layer uses curated star-schema marts rather than direct access to normalized core tables.
+The report layer uses curated star-schema marts rather than direct access to normalized core tables where the additional abstraction improves usability and governance.
 
 ## Additional goals
 

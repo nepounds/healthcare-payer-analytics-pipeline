@@ -1,20 +1,24 @@
 # v0.2bigdaddy Build Plan
 
-## Gate 0 — v0.1 exists
+## Gate 0 — Quality Performance milestone is stable
 
-Required before any Big Daddy work:
+Required before major expanded-platform work:
 
-- v0.1 public repo;
-- FUH pipeline works;
+- core relational model is tested;
+- FUH-style pipeline works;
+- quality trend/population/gap analysis works;
+- focused physical-health/pharmacy integration is documented;
 - Excel reconciliation works;
-- Power BI page works;
-- README is complete.
+- Power BI Quality report works;
+- assumptions, lineage, and run documentation are current.
 
-If not, return to v0.1.
+A public GitHub release is recommended at this point, but the engineering gate is **working and validated**, not publication for its own sake.
+
+The purpose of the gate is sequencing: finish the first end-to-end analyst workflow before adding new business domains.
 
 ## Phase 1 — Harden and scale
 
-- introduce `stg`, `mart`, and `audit`;
+- introduce `stg`, `mart`, and `audit` where justified;
 - run 5k → 10k → 25k → 50k member scaling tests;
 - capture row counts and runtime;
 - add indexes only where evidence supports them;
@@ -26,7 +30,7 @@ If not, return to v0.1.
 - build IET episode logic;
 - add test cases;
 - extend Excel validation;
-- add Quality report content.
+- extend Quality report content.
 
 ## Phase 3 — Claims Operations
 
@@ -110,7 +114,7 @@ Add:
 
 ## Scope rule
 
-If a feature does not strengthen one of these themes, defer it:
+If a feature does not strengthen one of these themes, defer it until the current milestone/domain is complete:
 
 1. payer-domain understanding;
 2. SQL/Excel/Power BI fluency;

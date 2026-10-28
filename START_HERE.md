@@ -43,13 +43,13 @@ healthcare-payer-analytics-pipeline
 5. **SQL Server Management Studio (SSMS)**
    - Use it for database setup, table inspection, and manual SQL practice.
 
-Excel and Power BI can remain closed until SQL produces a valid FUH episode result.
+Excel and Power BI can remain closed until SQL produces validated FUH and quality-analysis outputs.
 
 ## Suggested first commits
 
 ```text
 chore: initialize healthcare payer analytics project
-docs: add v0.1 architecture and assumptions
+docs: add quality milestone architecture and assumptions
 build: add local Python environment scaffold
 ```
 
@@ -66,16 +66,32 @@ Before Synthea, FUH, Excel, or Power BI:
 
 Once that works, begin synthetic-data ingestion.
 
-## Do not build yet
+## Development sequence
 
-- IET
-- claims operations
-- finance
-- network analytics
-- 50,000-member data
-- dbt
-- cloud services
-- production orchestration
-- elaborate HIPAA control matrices
+The project is built in this order:
 
-Those belong after v0.1 is working and public.
+1. environment and source generation;
+2. raw ingestion;
+3. typed core relational model;
+4. FUH-style performance-measure logic;
+5. quality analysis, including trends, gaps, population segmentation, physical-health context, and a focused pharmacy integration;
+6. Excel reconciliation;
+7. Power BI reporting;
+8. Quality Performance milestone documentation/publication;
+9. expanded payer-platform work in `docs/roadmap/v0.2bigdaddy/`.
+
+## Build later, not never
+
+The following remain part of the full project but should not interrupt the current Quality Performance milestone:
+
+- IET;
+- claims operations;
+- finance;
+- network analytics;
+- 50,000-member scaling;
+- `stg`, `mart`, and `audit` expansion;
+- production-style orchestration;
+- expanded governance controls;
+- cloud/dbt work only if later evidence shows they add portfolio value.
+
+These items are **sequenced after the Quality milestone; they are not canceled**.
