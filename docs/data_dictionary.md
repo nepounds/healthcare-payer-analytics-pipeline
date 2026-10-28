@@ -58,6 +58,28 @@ Suggested columns:
 | `principal_diagnosis_code` | convenient principal diagnosis field if source supports it |
 | `source_encounter_id` | source identifier |
 
+## `core.condition`
+
+**Grain:** one row per source clinical condition/diagnosis record.
+
+Suggested columns:
+
+| Column | Purpose |
+|---|---|
+| `condition_id` | internal condition key |
+| `member_id` | member foreign key |
+| `encounter_id` | related encounter where available |
+| `code_system` | diagnosis coding system, such as SNOMED-CT or ICD-10-CM |
+| `diagnosis_code` | diagnosis code within the stated code system |
+| `diagnosis_description` | source diagnosis description |
+| `condition_start_date` | condition onset/start date where available |
+| `condition_end_date` | condition resolution/end date where available |
+| `source_condition_id` | source identifier where available |
+| `synthetic_fixture_flag` | identifies controlled fixture records |
+| `pipeline_run_id` | source pipeline execution identifier |
+
+A diagnosis code must not be interpreted independently of `code_system`. Synthea clinical conditions primarily use SNOMED-CT, while the controlled FUH fixtures use ICD-10-CM.
+
 ## `core.claim`
 
 **Grain:** one row per claim.
@@ -108,6 +130,7 @@ Suggested columns:
 |---|---|
 | `claim_id` | parent claim |
 | `diagnosis_sequence` | diagnosis order |
+| `code_system` | coding system associated with the diagnosis code |
 | `diagnosis_code` | diagnosis |
 | `principal_flag` | whether principal diagnosis |
 | `diagnosis_group_id` | optional normalized grouping |
