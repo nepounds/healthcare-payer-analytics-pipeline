@@ -21,7 +21,7 @@ IF OBJECT_ID('core.enrollment_span', 'U') IS NULL
 BEGIN
     CREATE TABLE core.enrollment_span (
         enrollment_span_id BIGINT IDENTITY(1,1) NOT NULL
-            CONSTRAINT PK_core_enrollment_span PRIMARY KEY,
+            CONSTRAINT PK_core_enrollment_span PRIMARY KEY (enrollment_span_id),
 
         member_id BIGINT NOT NULL,
         payer_id BIGINT NOT NULL,
@@ -56,5 +56,17 @@ BEGIN
         CONSTRAINT CK_core_enrollment_span_source_rows
             CHECK (source_rows_merged >= 1)
     );
+END;
+GO
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID('core.enrollment_span')
+      AND name = 'IX_core_enrollment_span_member_dates'
+)
+BEGIN
+    CREATE INDEX IX_core_enrollment_span_member_dates
+        ON core.enrollment_span (member_id, enrollment_start_date, enrollment_end_date)
+        INCLUDE (payer_id, medical_benefit_flag, behavioral_health_benefit_flag);
 END;
 GO

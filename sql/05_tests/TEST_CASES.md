@@ -1,4 +1,4 @@
-# v0.1 Test Case Catalog
+# Quality Performance Milestone Test Case Catalog
 
 This file is the human-readable test catalog. Matching executable T-SQL tests will be added in this directory as measure logic is built.
 
@@ -16,6 +16,20 @@ Test IDs are referenced directly from `docs/assumptions_register.md`.
 | `T-DOC-001` | Public documentation labels FUH as an educational approximation | Required disclaimer is present |
 | `T-VAL-001` | Excel episode reconciliation agrees with SQL for controlled sample | No unexplained variance |
 | `T-BI-001` | Power BI consumes SQL episode results rather than rebuilding eligibility | Semantic model contains presentation logic only |
+
+
+## Core relational-model tests
+
+| Test ID | Rule | Expected result |
+|---|---|---|
+| `T-CORE-001` | `core.member` preserves one row per raw patient/source patient ID | Core member count reconciles to `raw.patient`; no duplicate source patient IDs |
+| `T-CORE-002` | `core.payer` preserves one row per raw payer/source payer ID | Core payer count reconciles to `raw.payer`; no duplicate source payer IDs |
+| `T-CORE-003` | Enrollment normalization preserves every raw payer-transition row | `SUM(source_rows_merged)` equals `COUNT(*)` from `raw.payer_transition` |
+| `T-CORE-004` | Continuous enrollment spans are fully normalized | No overlapping or directly adjacent spans remain in the same member/payer/benefit/lineage partition |
+| `T-CORE-005` | Enrollment relationships resolve to valid members and payers | No orphan `member_id` or `payer_id` values |
+| `T-CORE-006` | A-018 benefit approximation is applied consistently | Medicaid spans are 1/1 for medical/BH benefits; other primary payer spans are 0/0 |
+
+Executable file: `000_validate_core_foundation.sql`.
 
 ## FUH denominator and numerator boundary tests
 
@@ -44,7 +58,15 @@ Test IDs are referenced directly from `docs/assumptions_register.md`.
 | `T-FUH-021` | Candidate discharge occurs on December 1 | Episode remains eligible for denominator evaluation, subject to all other rules |
 | `T-FUH-022` | Candidate discharge occurs after December 1, or qualifying readmission moves the last discharge after December 1 | Episode/affected discharge sequence is excluded from the measurement-year denominator |
 
-## Planned executable SQL files
+## Executable and planned SQL files
+
+Implemented:
+
+```text
+000_validate_core_foundation.sql
+```
+
+Planned FUH boundary tests:
 
 ```text
 001_test_same_day_followup.sql

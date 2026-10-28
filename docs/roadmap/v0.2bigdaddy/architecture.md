@@ -2,7 +2,7 @@
 
 ## Goal
 
-Expand the shipped v0.1 FUH project into a multi-domain payer analytics platform without losing auditability.
+Expand the completed Quality Performance milestone into a multi-domain payer analytics platform without losing auditability.
 
 ## Schemas
 

@@ -1,44 +1,78 @@
-# v0.1 Data Dictionary
+# Quality Performance Milestone Data Dictionary
 
-This document defines the minimum logical data model required for the FUH release. Physical column names may evolve during implementation, but the grain of each table should remain explicit.
+This document defines the logical and physical data model used by the first Quality Performance milestone.
+
+For objects already implemented in SQL, the columns below reflect the committed physical schema. Objects not yet implemented remain proposed and may evolve before their DDL is committed. The grain of every object must remain explicit.
 
 ## `core.member`
 
+**Status:** implemented.
+
 **Grain:** one row per synthetic member.
 
-Suggested columns:
+| Column | Type | Purpose |
+|---|---|---|
+| `member_id` | `BIGINT` identity | internal surrogate member key |
+| `source_patient_id` | `VARCHAR(64)` | Synthea/FUH-fixture patient identifier; unique in core |
+| `birth_date` | `DATE` | typed date of birth |
+| `deceased_date` | `DATE`, nullable | typed death date when present |
+| `sex` | `CHAR(1)`, nullable | source F/M demographic value |
+| `county_code` | `CHAR(5)`, nullable | five-character county FIPS code |
+| `state_code` | `CHAR(2)`, nullable | normalized state code; `NC` for the modeled population |
+| `synthetic_fixture_flag` | `BIT` | distinguishes controlled FUH fixture members from Synthea source members |
+| `source_name` | `VARCHAR(50)` | source family such as `SYNTHEA` or `FUH_FIXTURE` |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier used for lineage |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
 
-| Column | Purpose |
-|---|---|
-| `member_id` | stable internal member identifier |
-| `source_patient_id` | source-system identifier |
-| `birth_date` | date of birth |
-| `sex` | source demographic field |
-| `county_code` | member geography |
-| `state_code` | expected to be NC for modeled population |
-| `deceased_date` | optional synthetic source field |
-| `created_at` | pipeline metadata |
+`source_patient_id` is unique. FUH flags do not belong on this table because FUH is episode-based, not member-based.
 
-Do not place FUH flags on this table. FUH is episode-based, not member-based.
+## `core.payer`
+
+**Status:** implemented.
+
+**Grain:** one row per source payer.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `payer_id` | `BIGINT` identity | internal surrogate payer key |
+| `source_payer_id` | `VARCHAR(64)` | source payer identifier; unique in core |
+| `payer_name` | `VARCHAR(100)` | source payer name |
+| `ownership` | `VARCHAR(50)`, nullable | source ownership category |
+| `source_name` | `VARCHAR(50)` | source family |
+| `source_file` | `VARCHAR(255)` | source filename for direct payer lineage |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
+
+The payer table intentionally keeps only descriptive fields required by the current core model. Source financial/utilization aggregates remain in `raw.payer` until a later analytical domain needs them.
 
 ## `core.enrollment_span`
 
-**Grain:** one row per uninterrupted enrollment span per member for a consistent benefit package.
+**Status:** implemented.
 
-Suggested columns:
+**Grain:** one row per continuous enrollment span for a member, payer, benefit configuration, and retained source-lineage partition.
 
-| Column | Purpose |
-|---|---|
-| `enrollment_span_id` | surrogate key |
-| `member_id` | member foreign key |
-| `coverage_start_date` | first covered date |
-| `coverage_end_date` | last covered date |
-| `product_line` | Medicaid in v0.1 |
-| `plan_id` | fictional plan identifier |
-| `medical_benefit_flag` | member has medical coverage during the span |
-| `behavioral_health_benefit_flag` | member has mental/behavioral-health coverage during the span |
+| Column | Type | Purpose |
+|---|---|---|
+| `enrollment_span_id` | `BIGINT` identity | surrogate enrollment-span key |
+| `member_id` | `BIGINT` | foreign key to `core.member` |
+| `payer_id` | `BIGINT` | foreign key to `core.payer` |
+| `enrollment_start_date` | `DATE` | first covered date in the normalized span |
+| `enrollment_end_date` | `DATE` | last covered date in the normalized span |
+| `medical_benefit_flag` | `BIT` | whether medical benefit coverage is modeled for the span |
+| `behavioral_health_benefit_flag` | `BIT` | whether behavioral-health benefit coverage is modeled for the span |
+| `synthetic_fixture_flag` | `BIT` | identifies controlled fixture-derived coverage |
+| `source_name` | `VARCHAR(50)` | source family retained for lineage |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `source_rows_merged` | `INT` | number of raw payer-transition rows represented by the normalized span |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
 
-For v0.1 FUH eligibility, the member must have uninterrupted enrollment with both required benefit flags equal to 1 from the discharge date through 30 days after discharge, with no allowable gap.
+The Phase 2 load uses `raw.payer_transition.PAYER` as the primary payer relationship. `SECONDARY_PAYER` is not yet promoted into the core enrollment model.
+
+Overlapping and directly adjacent source coverage rows are merged with a gaps-and-islands algorithm using the **running maximum prior end date**. This handles nested overlaps correctly and allows `SUM(source_rows_merged)` to reconcile back to the raw payer-transition row count.
+
+For the current Quality Performance milestone, assumption A-018 derives both benefit flags as `1` for Medicaid spans and `0` for other primary payer spans. This is an educational modeling approximation, not a representation of real benefit administration.
+
+For FUH eligibility, the member must have uninterrupted enrollment with both required benefit flags equal to `1` from the discharge date through 30 days after discharge, with no allowable gap.
 
 ## `core.encounter`
 
