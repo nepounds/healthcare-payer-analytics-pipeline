@@ -74,131 +74,227 @@ For the current Quality Performance milestone, assumption A-018 derives both ben
 
 For FUH eligibility, the member must have uninterrupted enrollment with both required benefit flags equal to `1` from the discharge date through 30 days after discharge, with no allowable gap.
 
-## `core.encounter`
+## `core.organization`
 
-**Grain:** one row per encounter.
+**Status:** implemented.
 
-Suggested columns:
+**Grain:** one row per source organization/facility.
 
-| Column | Purpose |
-|---|---|
-| `encounter_id` | internal encounter key |
-| `member_id` | member |
-| `provider_id` | rendering/facility provider where available |
-| `encounter_start_datetime` | encounter start |
-| `encounter_end_datetime` | encounter end |
-| `encounter_type` | inpatient, outpatient, ED, etc. |
-| `place_of_service` | normalized setting |
-| `principal_diagnosis_code` | convenient principal diagnosis field if source supports it |
-| `source_encounter_id` | source identifier |
+| Column | Type | Purpose |
+|---|---|---|
+| `organization_id` | `BIGINT` identity | internal surrogate organization key |
+| `source_organization_id` | `VARCHAR(64)` | source organization identifier; unique in core |
+| `organization_name` | `VARCHAR(512)` | source organization/facility name |
+| `npi` | `VARCHAR(20)`, nullable | source NPI where present |
+| `address_line` | `VARCHAR(512)`, nullable | source street address |
+| `city` | `VARCHAR(255)`, nullable | source city |
+| `state_code` | `CHAR(2)`, nullable | normalized source state code |
+| `zip_code` | `VARCHAR(20)`, nullable | source ZIP/postal value |
+| `latitude` | `DECIMAL(9,6)`, nullable | source latitude with range constraint |
+| `longitude` | `DECIMAL(9,6)`, nullable | source longitude with range constraint |
+| `synthetic_fixture_flag` | `BIT` | controlled-fixture lineage flag |
+| `source_name` | `VARCHAR(50)` | source family |
+| `source_file` | `VARCHAR(255)` | source filename |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
 
-## `core.condition`
-
-**Grain:** one row per source clinical condition/diagnosis record.
-
-Suggested columns:
-
-| Column | Purpose |
-|---|---|
-| `condition_id` | internal condition key |
-| `member_id` | member foreign key |
-| `encounter_id` | related encounter where available |
-| `code_system` | diagnosis coding system, such as SNOMED-CT or ICD-10-CM |
-| `diagnosis_code` | diagnosis code within the stated code system |
-| `diagnosis_description` | source diagnosis description |
-| `condition_start_date` | condition onset/start date where available |
-| `condition_end_date` | condition resolution/end date where available |
-| `source_condition_id` | source identifier where available |
-| `synthetic_fixture_flag` | identifies controlled fixture records |
-| `pipeline_run_id` | source pipeline execution identifier |
-
-A diagnosis code must not be interpreted independently of `code_system`. Synthea clinical conditions primarily use SNOMED-CT, while the controlled FUH fixtures use ICD-10-CM.
-
-## `core.claim`
-
-**Grain:** one row per claim.
-
-Suggested columns:
-
-| Column | Purpose |
-|---|---|
-| `claim_id` | internal claim key |
-| `member_id` | member |
-| `provider_id` | billing/rendering/facility provider as modeled |
-| `service_from_date` | earliest service date |
-| `service_to_date` | latest service date |
-| `adjudication_date` | optional for future expansion |
-| `claim_status` | paid/denied/etc. if available |
-| `total_billed_amount` | claim total |
-| `total_allowed_amount` | allowed total |
-| `total_paid_amount` | paid total |
-
-v0.1 may use only a subset of these fields, but claim grain should be established correctly for later releases.
-
-## `core.claim_line`
-
-**Grain:** one row per service line within a claim.
-
-Suggested columns:
-
-| Column | Purpose |
-|---|---|
-| `claim_line_id` | internal line key |
-| `claim_id` | parent claim |
-| `line_number` | source line sequence |
-| `service_date` | line service date |
-| `procedure_code` | service/procedure code |
-| `place_of_service` | line-level setting if available |
-| `billed_amount` | line billed amount |
-| `allowed_amount` | line allowed amount |
-| `paid_amount` | line paid amount |
-| `denial_reason_code` | optional future field |
-
-## `core.claim_diagnosis`
-
-**Grain:** one row per claim/diagnosis association.
-
-Suggested columns:
-
-| Column | Purpose |
-|---|---|
-| `claim_id` | parent claim |
-| `diagnosis_sequence` | diagnosis order |
-| `code_system` | coding system associated with the diagnosis code |
-| `diagnosis_code` | diagnosis |
-| `principal_flag` | whether principal diagnosis |
-| `diagnosis_group_id` | optional normalized grouping |
+Source organization utilization and revenue aggregates remain in `raw.organization`; they are not duplicated into the relational network entity.
 
 ## `core.provider`
 
-**Grain:** one row per provider entity.
+**Status:** implemented.
 
-Suggested columns:
+**Grain:** one row per source clinician/provider.
 
-| Column | Purpose |
-|---|---|
-| `provider_id` | internal provider key |
-| `source_provider_id` | source identifier |
-| `provider_name` | synthetic provider name |
-| `provider_type` | practitioner/facility/etc. |
-| `specialty` | normalized specialty where available |
-| `organization_id` | optional parent organization |
+| Column | Type | Purpose |
+|---|---|---|
+| `provider_id` | `BIGINT` identity | internal surrogate provider key |
+| `source_provider_id` | `VARCHAR(64)` | source provider identifier; unique in core |
+| `organization_id` | `BIGINT` | foreign key to `core.organization` |
+| `provider_name` | `VARCHAR(512)` | source provider name |
+| `sex` | `CHAR(1)`, nullable | source F/M value where present |
+| `specialty` | `VARCHAR(255)`, nullable | source provider specialty |
+| `npi` | `VARCHAR(20)`, nullable | source NPI where present |
+| `synthetic_fixture_flag` | `BIT` | controlled-fixture lineage flag |
+| `source_name` | `VARCHAR(50)` | source family |
+| `source_file` | `VARCHAR(255)` | source filename |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
 
-## `core.provider_location`
+A separate `core.provider_location` table is not implemented in Phase 2. The current source exposes a provider-to-organization relationship, and organization carries the location attributes needed by the Quality Performance milestone.
 
-**Grain:** one row per provider-location combination.
+## `core.encounter`
 
-Suggested columns:
+**Status:** implemented.
 
-| Column | Purpose |
-|---|---|
-| `provider_location_id` | key |
-| `provider_id` | provider |
-| `county_code` | NC county |
-| `state_code` | state |
-| `zip_code` | synthetic ZIP if retained |
-| `active_start_date` | optional |
-| `active_end_date` | optional |
+**Grain:** one row per source encounter.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `encounter_id` | `BIGINT` identity | internal surrogate encounter key |
+| `source_encounter_id` | `VARCHAR(64)` | source encounter identifier; unique in core |
+| `member_id` | `BIGINT` | required foreign key to `core.member` |
+| `organization_id` | `BIGINT`, nullable | facility/organization foreign key where supplied |
+| `provider_id` | `BIGINT`, nullable | rendering clinician/provider foreign key where supplied |
+| `payer_id` | `BIGINT`, nullable | encounter payer foreign key where supplied |
+| `encounter_start_datetime` | `DATETIME2(0)` | normalized encounter start timestamp |
+| `encounter_end_datetime` | `DATETIME2(0)` | normalized encounter end timestamp |
+| `encounter_type` | `VARCHAR(128)` | source encounter class such as inpatient, ambulatory, or emergency |
+| `encounter_code` | `VARCHAR(255)`, nullable | source encounter code |
+| `encounter_description` | `VARCHAR(2000)`, nullable | source encounter description |
+| `reason_code` | `VARCHAR(255)`, nullable | source reason code; not relabeled as principal diagnosis |
+| `reason_description` | `VARCHAR(2000)`, nullable | source reason description |
+| `base_encounter_cost` | `DECIMAL(19,2)`, nullable | typed source base encounter cost |
+| `total_claim_cost` | `DECIMAL(19,2)`, nullable | typed source total claim cost |
+| `payer_coverage` | `DECIMAL(19,2)`, nullable | typed source payer coverage |
+| `synthetic_fixture_flag` | `BIT` | controlled-fixture lineage flag |
+| `source_name` | `VARCHAR(50)` | source family |
+| `source_file` | `VARCHAR(255)` | source filename |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
+
+`REASONCODE` is preserved as a source reason code because the source does not establish principal-diagnosis semantics. Encounter chronology is constrained so end cannot precede start.
+
+## `core.condition`
+
+**Status:** implemented.
+
+**Grain:** one row per source clinical condition/diagnosis record.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `condition_id` | `BIGINT` identity | internal surrogate condition key |
+| `member_id` | `BIGINT` | required foreign key to `core.member` |
+| `encounter_id` | `BIGINT`, nullable | foreign key to `core.encounter` where the source supplies an encounter |
+| `code_system` | `VARCHAR(255)` | diagnosis coding system |
+| `diagnosis_code` | `VARCHAR(255)` | diagnosis code within the stated system |
+| `diagnosis_description` | `VARCHAR(2000)`, nullable | source diagnosis description |
+| `condition_start_date` | `DATE` | source condition start/onset date |
+| `condition_end_date` | `DATE`, nullable | source condition end/resolution date where present |
+| `synthetic_fixture_flag` | `BIT` | controlled-fixture lineage flag |
+| `source_name` | `VARCHAR(50)` | source family |
+| `source_file` | `VARCHAR(255)` | source filename |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
+
+The raw condition export does not contain a condition identifier, so `condition_id` is a core surrogate rather than a wrapper around a nonexistent source key. Duplicate source condition rows are preserved. A diagnosis code must not be interpreted independently of `code_system`; ordinary Synthea conditions are SNOMED-CT in the current source while controlled FUH fixtures are ICD-10-CM.
+
+## `core.claim`
+
+**Status:** implemented.
+
+**Grain:** one row per source claim.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `claim_id` | `BIGINT` identity | internal surrogate claim key |
+| `source_claim_id` | `VARCHAR(64)` | source claim identifier; unique in core |
+| `member_id` | `BIGINT` | required foreign key to `core.member` |
+| `encounter_id` | `BIGINT` | required foreign key to `core.encounter` |
+| `rendering_provider_id` | `BIGINT`, nullable | rendering provider relationship where supplied |
+| `referring_provider_id` | `BIGINT`, nullable | referring provider relationship where supplied |
+| `supervising_provider_id` | `BIGINT`, nullable | supervising provider relationship where supplied |
+| `primary_payer_id` | `BIGINT`, nullable | primary payer relationship where supplied |
+| `secondary_payer_id` | `BIGINT`, nullable | secondary payer relationship where supplied |
+| `service_date` | `DATE` | source claim service date |
+| `current_illness_date` | `DATE`, nullable | typed source current-illness date |
+| `department_id` | `VARCHAR(64)`, nullable | source department identifier |
+| `patient_department_id` | `VARCHAR(64)`, nullable | source patient-department identifier |
+| `primary_status` | `VARCHAR(128)`, nullable | source primary-claim status |
+| `secondary_status` | `VARCHAR(128)`, nullable | source secondary-claim status |
+| `patient_status` | `VARCHAR(128)`, nullable | source patient-responsibility status |
+| `primary_outstanding_amount` | `DECIMAL(19,2)`, nullable | source primary outstanding amount |
+| `secondary_outstanding_amount` | `DECIMAL(19,2)`, nullable | source secondary outstanding amount |
+| `patient_outstanding_amount` | `DECIMAL(19,2)`, nullable | source patient outstanding amount |
+| `primary_last_billed_date` | `DATE`, nullable | source primary last-billed date |
+| `secondary_last_billed_date` | `DATE`, nullable | source secondary last-billed date |
+| `patient_last_billed_date` | `DATE`, nullable | source patient last-billed date |
+| `primary_healthcare_claim_type_id` | `VARCHAR(64)`, nullable | source primary claim-type identifier |
+| `secondary_healthcare_claim_type_id` | `VARCHAR(64)`, nullable | source secondary claim-type identifier |
+| `synthetic_fixture_flag` | `BIT` | controlled-fixture lineage flag |
+| `source_name` | `VARCHAR(50)` | source family |
+| `source_file` | `VARCHAR(255)` | source filename |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
+
+Phase 2 does not invent claim-level billed, allowed, or paid totals. The source exposes those financial events at transaction grain, so the claim header preserves only fields actually supported by the claim export.
+
+## `core.claim_diagnosis`
+
+**Status:** implemented.
+
+**Grain:** one row per populated diagnosis position on a source claim.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `claim_diagnosis_id` | `BIGINT` identity | internal surrogate claim-diagnosis key |
+| `claim_id` | `BIGINT` | required foreign key to `core.claim` |
+| `diagnosis_sequence` | `TINYINT` | source diagnosis position 1 through 8 |
+| `diagnosis_code` | `VARCHAR(255)` | source diagnosis code |
+| `synthetic_fixture_flag` | `BIT` | controlled-fixture lineage inherited from the claim |
+| `source_name` | `VARCHAR(50)` | source family |
+| `source_file` | `VARCHAR(255)` | source filename |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
+
+The claim export does not identify the diagnosis coding system, so Phase 2 does not assign one. Position 1 is not labeled as principal diagnosis. Sequence is retained because transaction diagnosis-reference fields point to claim diagnosis positions.
+
+## `core.claim_transaction`
+
+**Status:** implemented.
+
+**Grain:** one row per source claim-transaction record.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `claim_transaction_id` | `BIGINT` identity | internal surrogate transaction key |
+| `source_transaction_id` | `VARCHAR(64)` | source transaction identifier; unique in core |
+| `source_charge_id` | `VARCHAR(64)`, nullable | source CHARGEID preserved as an opaque related identifier, not a line number |
+| `claim_id` | `BIGINT` | required foreign key to `core.claim` |
+| `member_id` | `BIGINT` | required foreign key to `core.member` |
+| `encounter_id` | `BIGINT`, nullable | transaction encounter relationship where supplied |
+| `provider_id` | `BIGINT`, nullable | transaction provider relationship where supplied |
+| `supervising_provider_id` | `BIGINT`, nullable | supervising-provider relationship where supplied |
+| `source_patient_insurance_id` | `VARCHAR(64)`, nullable | raw `PATIENTINSURANCEID` preserved without a payer/enrollment FK |
+| `place_organization_id` | `BIGINT`, nullable | organization FK only when `source_place_value` resolves to a known organization |
+| `transaction_type` | `VARCHAR(128)` | source financial event type |
+| `amount` | `DECIMAL(19,2)`, nullable | source transaction amount |
+| `method` | `VARCHAR(128)`, nullable | source payment/adjustment method |
+| `service_from_date` | `DATE` | typed source service start date |
+| `service_to_date` | `DATE`, nullable | typed valid service end date; documented invalid end dates normalize to `NULL` |
+| `source_place_value` | `VARCHAR(128)`, nullable | raw `PLACEOFSERVICE` value preserved because source semantics are mixed |
+| `procedure_code` | `VARCHAR(255)`, nullable | source procedure/service code |
+| `modifier_1` | `VARCHAR(128)`, nullable | source first modifier |
+| `modifier_2` | `VARCHAR(128)`, nullable | source second modifier |
+| `diagnosis_reference_1` | `TINYINT`, nullable | ordinal reference to claim diagnosis position 1-8 |
+| `diagnosis_reference_2` | `TINYINT`, nullable | ordinal reference to claim diagnosis position 1-8 |
+| `diagnosis_reference_3` | `TINYINT`, nullable | ordinal reference to claim diagnosis position 1-8 |
+| `diagnosis_reference_4` | `TINYINT`, nullable | ordinal reference to claim diagnosis position 1-8 |
+| `units` | `INT`, nullable | source units |
+| `department_id` | `VARCHAR(64)`, nullable | source department identifier |
+| `notes` | `VARCHAR(2000)`, nullable | source transaction notes/description |
+| `unit_amount` | `DECIMAL(19,2)`, nullable | source unit amount |
+| `transfer_out_id` | `VARCHAR(64)`, nullable | source transfer-out reference |
+| `transfer_type` | `VARCHAR(128)`, nullable | source transfer category |
+| `payments` | `DECIMAL(19,2)`, nullable | source payment amount |
+| `adjustments` | `DECIMAL(19,2)`, nullable | source adjustment amount |
+| `transfers` | `DECIMAL(19,2)`, nullable | source transfer amount |
+| `outstanding` | `DECIMAL(19,2)`, nullable | source outstanding amount |
+| `line_note` | `VARCHAR(2000)`, nullable | source line note |
+| `fee_schedule_id` | `VARCHAR(64)`, nullable | source fee-schedule identifier |
+| `synthetic_fixture_flag` | `BIT` | controlled-fixture lineage flag |
+| `source_name` | `VARCHAR(50)` | source family |
+| `source_file` | `VARCHAR(255)` | source filename |
+| `pipeline_run_id` | `UNIQUEIDENTIFIER` | raw-load execution identifier |
+| `created_at_utc` | `DATETIME2(0)` | UTC core-row creation timestamp |
+
+There is no separate Phase 2 `core.claim_line`. The source is transaction/event-grained, and `CHARGEID` is not treated as a stable service-line sequence. This keeps claim-level analysis practical without fabricating a line grain.
+
+`raw.claim_transaction.PLACEOFSERVICE` has mixed semantics in the combined source package. Ordinary Synthea rows use organization resource identifiers, while controlled FUH fixture transactions use POS-style values such as `11` and `21`. Core therefore preserves the raw value in `source_place_value` and populates `place_organization_id` only when the value resolves to `core.organization`.
+
+`raw.claim_transaction.PATIENTINSURANCEID` is also retained as source lineage rather than promoted to a payer or enrollment foreign key. The actual payer relationships used by the current core model live on `core.claim`.
+
+Source transaction end dates equal to `1970-01-01` or earlier than the corresponding service start date are normalized to `NULL`; unparseable dates still fail the load. The raw record remains available through `source_transaction_id` for audit.
 
 ## `ref.date`
 

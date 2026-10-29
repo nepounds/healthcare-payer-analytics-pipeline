@@ -48,18 +48,19 @@ Exit condition: raw load can be rerun from scratch with consistent row counts an
 
 Deliverables:
 
-- member;
-- payer;
-- enrollment span;
-- encounter;
-- condition;
-- claim;
-- claim line / claim transaction representation;
-- claim diagnosis where supported by source structure;
-- provider;
-- organization/provider-location representation where useful;
-- date/reference tables needed by the quality model;
-- keys, constraints, indexes, and data-quality checks appropriate to each grain.
+- `core.member`;
+- `core.payer`;
+- `core.enrollment_span`;
+- `core.organization`;
+- `core.provider`;
+- `core.encounter`;
+- `core.condition`;
+- `core.claim`;
+- `core.claim_diagnosis`;
+- `core.claim_transaction`;
+- keys, constraints, focused indexes, lineage fields, and executable data-quality checks appropriate to each grain.
+
+Implemented scope note: the source supports a transaction/event grain rather than a trustworthy claim-line grain, so Phase 2 does not fabricate `core.claim_line`. A separate provider-location table is also unnecessary for the current source because provider location is represented through `core.provider -> core.organization`. No Phase 2 date/reference table is required to close the relational layer; measure-specific reference/value-set objects belong to Phase 3 when FUH logic is implemented.
 
 Practice focus:
 
@@ -75,7 +76,7 @@ Practice focus:
 - `COUNT(DISTINCT)`;
 - source-to-core row-count reconciliation.
 
-Exit condition: keys, grains, row counts, lineage, and relationships are documented and tested; source-to-core transformations can be rerun without unexplained loss or duplication.
+Exit condition: keys, grains, row counts, lineage, and relationships are documented and tested; source-to-core transformations can be rerun without unexplained loss or duplication. **Status: complete for the current pinned source and fixture package.**
 
 ## Phase 3 — FUH performance-measure logic
 

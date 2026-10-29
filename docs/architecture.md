@@ -88,19 +88,20 @@ Rules:
 
 Purpose: provide cleaned, payer-oriented relational entities with explicit grain and stable relationships.
 
-Quality-milestone entities include:
+Quality-milestone Phase 2 entities are:
 
 - `core.member`
 - `core.payer`
 - `core.enrollment_span`
+- `core.organization`
+- `core.provider`
 - `core.encounter`
 - `core.condition`
 - `core.claim`
-- claim-line/transaction representation appropriate to the source;
-- claim-diagnosis representation where supported;
-- `core.provider`
-- organization/provider-location representation where useful;
-- medication/pharmacy representation when promoted during Phase 4.
+- `core.claim_diagnosis`
+- `core.claim_transaction`
+
+The source is transaction/event-grained, so Phase 2 deliberately does not fabricate a separate claim-line table. Provider location is represented through the provider-to-organization relationship rather than a duplicate provider-location entity. Medication/pharmacy representation remains a Phase 4 extension.
 
 Rules:
 
@@ -111,6 +112,8 @@ Rules:
 - referential-integrity checks;
 - source-to-core reconciliation;
 - no FUH numerator/denominator flags.
+
+Phase 2 also preserves source semantics when the landing data cannot support a clean normalized relationship. In particular, claim-transaction `PLACEOFSERVICE` is preserved as a raw source value and only resolves to an organization when the value is actually an organization identifier; `PATIENTINSURANCEID` is retained as source lineage rather than forced into a payer FK; and invalid/sentinel transaction end dates normalize to `NULL` while remaining traceable in raw.
 
 ### `ref`
 

@@ -28,8 +28,31 @@ Test IDs are referenced directly from `docs/assumptions_register.md`.
 | `T-CORE-004` | Continuous enrollment spans are fully normalized | No overlapping or directly adjacent spans remain in the same member/payer/benefit/lineage partition |
 | `T-CORE-005` | Enrollment relationships resolve to valid members and payers | No orphan `member_id` or `payer_id` values |
 | `T-CORE-006` | A-018 benefit approximation is applied consistently | Medicaid spans are 1/1 for medical/BH benefits; other primary payer spans are 0/0 |
+| `T-CORE-007` | `core.organization` preserves one row per raw organization/source organization ID | Core organization count reconciles to `raw.organization`; source IDs are unique |
+| `T-CORE-008` | `core.provider` preserves one row per raw provider/source provider ID | Core provider count reconciles to `raw.provider`; source IDs are unique |
+| `T-CORE-009` | Provider-to-organization relationships are valid | No orphan provider organization keys; raw provider organization attribution is preserved |
+| `T-CORE-010` | Network required fields, lineage, and fixture handling are valid | Required fields are populated; lineage reconciles; fixture preservation is consistent with source |
+| `T-CORE-011` | `core.encounter` preserves one row per raw encounter/source encounter ID | Encounter count reconciles to `raw.encounter`; source IDs and PKs are unique |
+| `T-CORE-012` | Encounter relationships, chronology, and typed numeric fields are valid | Member/provider/organization/payer links resolve; dates and costs are valid |
+| `T-CORE-013` | `core.condition` preserves one row per raw condition record | Condition count reconciles to `raw.condition`; required typed fields are populated |
+| `T-CORE-014` | Condition relationships, coding-system context, and chronology are valid | Member/encounter links resolve where supplied; code system is retained; dates are valid |
+| `T-CORE-015` | Controlled encounter/condition fixture lineage is preserved | Fixture counts reconcile and fixture conditions retain ICD-10-CM lineage |
+| `T-CORE-016` | `core.claim` preserves one row per raw claim/source claim ID | Claim count reconciles to `raw.claim`; source IDs and PKs are unique; required fields are populated |
+| `T-CORE-017` | Claim relationships and typed source fields are valid | Member/encounter/provider/payer relationships resolve and match the source |
+| `T-CORE-018` | Claim diagnoses expand at one row per populated source diagnosis position | Core row count reconciles to populated DIAGNOSIS1-8 positions; claim/sequence is unique |
+| `T-CORE-019` | `core.claim_transaction` preserves one row per raw transaction/source transaction ID | Transaction count reconciles 1:1; source IDs and PKs are unique; required fields are populated |
+| `T-CORE-020` | Claim-to-transaction relationships and preserved source fields remain coherent | Claim/member/encounter/provider links are valid and raw `PATIENTINSURANCEID` is preserved exactly |
+| `T-CORE-021` | Transaction dates, diagnosis references, and mixed place-value semantics are valid | Invalid source end dates normalize to `NULL`; diagnosis references resolve; organization place values map correctly |
+| `T-CORE-022` | Controlled claim/transaction fixture lineage is preserved | Fixture claim/diagnosis/transaction counts reconcile and POS-style place values are retained |
 
-Executable file: `000_validate_core_foundation.sql`.
+Executable files:
+
+```text
+000_validate_core_foundation.sql  # T-CORE-001 through T-CORE-006
+001_validate_core_network.sql     # T-CORE-007 through T-CORE-010
+002_validate_core_clinical.sql    # T-CORE-011 through T-CORE-015
+003_validate_core_claims.sql      # T-CORE-016 through T-CORE-022
+```
 
 ## FUH denominator and numerator boundary tests
 
@@ -60,10 +83,13 @@ Executable file: `000_validate_core_foundation.sql`.
 
 ## Executable and planned SQL files
 
-Implemented:
+Implemented core validation:
 
 ```text
 000_validate_core_foundation.sql
+001_validate_core_network.sql
+002_validate_core_clinical.sql
+003_validate_core_claims.sql
 ```
 
 Planned FUH boundary tests:
