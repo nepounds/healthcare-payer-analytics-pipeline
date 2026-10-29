@@ -1,21 +1,30 @@
 # v0.2 — Expanded Payer Analytics Platform
 
-## Relationship to the Quality Performance milestone
+## Relationship to the current project roadmap
 
-v0.2 Expanded Payer Analytics Platform remains the full expansion plan for the Healthcare Payer Analytics Pipeline.
+v0.2 Expanded Payer Analytics Platform is the longer-term expansion plan for the Healthcare Payer Analytics Pipeline. It is **not** the immediate next phase.
 
-The project roadmap has been **reordered, not reduced**. The current Quality Performance milestone is completed first because it creates the strongest end-to-end analyst workflow early. Once that milestone is stable, development continues here.
+The current sequence is:
 
-A public release of the Quality milestone is recommended before major expansion, but publication itself is no longer an artificial blocker if the underlying milestone is already working, tested, reconciled, and documented.
+1. Phase 0 — setup — complete;
+2. Phase 1 — raw ingestion — complete;
+3. Phase 2 — core relational model — complete;
+4. Phase 3 — FUH-style quality measure and reporting — complete;
+5. Phase 4 — Excel analytics, reconciliation, and SQL practice sandbox;
+6. Phase 5 — Power BI reporting;
+7. portfolio release polish;
+8. expanded payer-platform work in this folder.
+
+The roadmap has been reordered so the project first finishes a complete analyst workflow using SQL, Excel, and Power BI before expanding into additional payer domains.
 
 ## Entry condition
 
-Begin expanded-platform work when the Quality Performance milestone has:
+Begin expanded-platform work when the current portfolio workflow has:
 
 - a tested core relational model;
-- working FUH-style episode and rate logic;
+- working FUH-style event and rate logic;
 - reproducible quality trend/population/gap outputs;
-- Excel reconciliation;
+- a validated Excel analytics/reconciliation workbook;
 - a working Power BI Quality report;
 - current documentation and assumptions.
 
@@ -23,7 +32,7 @@ Do not use later-domain work to avoid finishing those foundations.
 
 ## Scope
 
-One shared synthetic North Carolina Medicaid dataset supports four reporting domains:
+One shared synthetic North Carolina Medicaid dataset could eventually support four reporting domains:
 
 1. **Quality**
    - FUH-style approximation;
@@ -56,11 +65,11 @@ One shared synthetic North Carolina Medicaid dataset supports four reporting dom
 
 Target approximately **50,000 synthetic members** across two to three years.
 
-Scale only after the Quality Performance milestone logic is correct. Performance tuning is part of this expanded-platform work.
+Scale only after the current SQL/Excel/Power BI workflow is correct and documented. Performance tuning belongs in this expanded-platform work rather than being forced into the current milestone.
 
 ## Architecture
 
-v0.2 Expanded Payer Analytics Platform expands to seven SQL schemas:
+v0.2 may expand to seven SQL schemas:
 
 ```text
 raw
@@ -72,31 +81,23 @@ mart
 audit
 ```
 
-The report layer uses curated star-schema marts rather than direct access to normalized core tables where the additional abstraction improves usability and governance.
+The report layer may use curated star-schema marts where the additional abstraction improves usability and governance.
 
 ## Additional goals
 
 - automated end-to-end pipeline;
 - rerunnable build;
-- data-quality tests;
+- broader data-quality tests;
 - fuller HIPAA-aware security/governance design;
 - explicit lineage;
 - richer documentation;
 - multiple Power BI pages over consistent dimensions;
-- performance testing at 50k-member scale.
+- performance testing at larger scale.
 
 ## Measure disclaimer
 
 FUH and IET remain educational/public-description-based approximations unless the project later obtains properly licensed specifications. They must not be represented as certified HEDIS calculations.
 
-Public NCQA references:
-
-FUH:
-https://www.ncqa.org/report-cards/health-plans/state-of-health-care-quality-report/follow-up-after-hospitalization-for-mental-illness-fuh/
-
-IET:
-https://www.ncqa.org/report-cards/health-plans/state-of-health-care-quality-report/initiation-and-engagement-of-substance-use-disorder-treatment-iet/
-
 ## Definition of done
 
-v0.2 Expanded Payer Analytics Platform is complete when all four domains run over one shared model, validation is repeatable, the automated pipeline is stable, documentation is current, and the GitHub repository remains understandable without a guided tour.
+v0.2 Expanded Payer Analytics Platform is complete when the selected payer domains run over one shared model, validation is repeatable, the automated pipeline is stable, documentation is current, and the GitHub repository remains understandable without a guided tour.

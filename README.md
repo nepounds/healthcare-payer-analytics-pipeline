@@ -2,7 +2,7 @@
 
 A portfolio project that uses synthetic healthcare data to build a payer analytics workflow in SQL Server.
 
-The project loads raw healthcare data, cleans it into a relational model, calculates a behavioral-health quality measure, and produces reporting outputs that could be used for quality analysis.
+The project loads raw healthcare data, cleans it into a relational model, calculates a behavioral-health quality measure, and produces reporting outputs that could be used for quality analysis. The database is also intentionally kept as a large practice sandbox for SQL joins, Excel analysis, reconciliation, and reporting.
 
 ## What the project does
 
@@ -16,7 +16,7 @@ The current version includes:
 - payer, monthly, demographic, follow-up timing, and open-gap reporting;
 - automated SQL tests for data quality and measure logic.
 
-Excel reconciliation and Power BI reporting are planned for the next phase.
+Phase 4 will add an Excel analytics and reconciliation sandbox. Power BI reporting is planned for Phase 5.
 
 ## FUH-style results
 
@@ -61,8 +61,8 @@ The current SQL Server database contains:
 - Microsoft SQL Server Developer Edition
 - SQL Server Management Studio
 - Git / GitHub
-- Excel / Power Query — planned
-- Power BI Desktop — planned
+- Excel / Power Query — planned for Phase 4
+- Power BI Desktop — planned for Phase 5
 
 ## Database structure
 
@@ -149,13 +149,17 @@ Local setup notes are available in [`docs/setup.md`](docs/setup.md).
 - **Phase 1 — Raw ingestion:** complete
 - **Phase 2 — Core relational model:** complete and validated
 - **Phase 3 — Quality measure and reporting:** complete and validated
-- **Next:** Excel reconciliation and Power BI reporting
+- **Phase 4 — Excel analytics, reconciliation, and SQL practice sandbox:** next
+- **Phase 5 — Power BI reporting:** planned
+- **Later — Expanded payer analytics platform:** planned
+
+See [`docs/phase4_excel_plan.md`](docs/phase4_excel_plan.md) for the Phase 4 scope and definition of done.
 
 ## Current limitations
 
 This is a portfolio project built with synthetic data.
 
-The current version doesn't include:
+The current version does not include:
 
 - official NCQA HEDIS specifications or licensed value sets;
 - principal-diagnosis-based readmission or transfer exclusions;
@@ -164,6 +168,6 @@ The current version doesn't include:
 - disability or cultural-factor analysis;
 - regulatory submission workflows.
 
-Those areas aren't claimed unless they're actually implemented.
+Those areas are not claimed unless they are actually implemented.
 
 Future expansion ideas are documented in [`docs/roadmap/v0.2-expanded-payer-platform/`](docs/roadmap/v0.2-expanded-payer-platform/).
