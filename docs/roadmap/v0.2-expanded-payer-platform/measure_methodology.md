@@ -1,4 +1,4 @@
-# v0.2bigdaddy Quality Measure Methodology
+# v0.2 Expanded Payer Analytics Platform Quality Measure Methodology
 
 ## General design
 

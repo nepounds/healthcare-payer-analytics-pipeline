@@ -1,4 +1,4 @@
-# v0.2bigdaddy Build Plan
+# v0.2 Expanded Payer Analytics Platform Build Plan
 
 ## Gate 0 — Quality Performance milestone is stable
 

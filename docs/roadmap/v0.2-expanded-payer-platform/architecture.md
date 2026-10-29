@@ -1,4 +1,4 @@
-# v0.2bigdaddy Architecture
+# v0.2 Expanded Payer Analytics Platform Architecture
 
 ## Goal
 
@@ -93,7 +93,7 @@ Use for semantic/report modeling, DAX presentation measures, filtering, time int
 
 v0.1 can survive without dedicated `stg`, `mart`, and `audit` schemas.
 
-v0.2bigdaddy cannot cleanly support four domains without them.
+v0.2 Expanded Payer Analytics Platform cannot cleanly support four domains without them.
 
 - `stg` keeps source cleanup out of business entities.
 - `mart` prevents each report from inventing its own dataset.

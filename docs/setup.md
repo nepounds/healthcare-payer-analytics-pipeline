@@ -1,4 +1,4 @@
-# Start Here
+# Local Setup and Execution
 
 ## Project name
 
@@ -80,3 +80,8 @@ Do not describe the project as an official NCQA HEDIS implementation. It does no
 ## Build later, not fabricated now
 
 The current source does not support truthful implementation of every payer-quality domain. Pharmacy integration, physical-health integration, disability/cultural-factor analysis, official regulatory submission logic, and licensed HEDIS value sets belong in future work only if suitable source data and specifications are added.
+
+
+## Future roadmap
+
+Expanded payer-platform design notes live under `docs/roadmap/v0.2-expanded-payer-platform/`.

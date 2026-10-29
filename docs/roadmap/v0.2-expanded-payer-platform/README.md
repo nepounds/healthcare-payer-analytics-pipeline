@@ -1,8 +1,8 @@
-# v0.2bigdaddy — Expanded Payer Analytics Platform
+# v0.2 — Expanded Payer Analytics Platform
 
 ## Relationship to the Quality Performance milestone
 
-v0.2bigdaddy remains the full expansion plan for the Healthcare Payer Analytics Pipeline.
+v0.2 Expanded Payer Analytics Platform remains the full expansion plan for the Healthcare Payer Analytics Pipeline.
 
 The project roadmap has been **reordered, not reduced**. The current Quality Performance milestone is completed first because it creates the strongest end-to-end analyst workflow early. Once that milestone is stable, development continues here.
 
@@ -60,7 +60,7 @@ Scale only after the Quality Performance milestone logic is correct. Performance
 
 ## Architecture
 
-v0.2bigdaddy expands to seven SQL schemas:
+v0.2 Expanded Payer Analytics Platform expands to seven SQL schemas:
 
 ```text
 raw
@@ -99,4 +99,4 @@ https://www.ncqa.org/report-cards/health-plans/state-of-health-care-quality-repo
 
 ## Definition of done
 
-v0.2bigdaddy is complete when all four domains run over one shared model, validation is repeatable, the automated pipeline is stable, documentation is current, and the GitHub repository remains understandable without a guided tour.
+v0.2 Expanded Payer Analytics Platform is complete when all four domains run over one shared model, validation is repeatable, the automated pipeline is stable, documentation is current, and the GitHub repository remains understandable without a guided tour.

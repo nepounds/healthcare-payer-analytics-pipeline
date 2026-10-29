@@ -42,14 +42,26 @@ IF NOT EXISTS (
 )
     THROW 52006, 'T-FUH-028 failed: index encounter reference set is missing.', 1;
 
-IF NOT EXISTS (
+IF (
+    SELECT COUNT_BIG(*)
+    FROM ref.measure_value_set
+    WHERE measure_id = 'FUH_STYLE_MY2025'
+      AND value_set_name = 'BEHAVIORAL_HEALTH_DIAGNOSIS'
+      AND active_flag = 1
+      AND licensed_spec_flag = 0
+      AND UPPER(code_system) = 'ICD-10-CM'
+      AND match_type = 'PREFIX'
+      AND UPPER(code_value) IN ('F0', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9')
+) <> 9
+OR EXISTS (
     SELECT 1
     FROM ref.measure_value_set
     WHERE measure_id = 'FUH_STYLE_MY2025'
       AND value_set_name = 'BEHAVIORAL_HEALTH_DIAGNOSIS'
       AND active_flag = 1
+      AND UPPER(code_value) NOT IN ('F0', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9')
 )
-    THROW 52007, 'T-FUH-029 failed: behavioral-health diagnosis reference set is missing.', 1;
+    THROW 52007, 'T-FUH-029 failed: expected the nine project-owned non-substance BH prefixes F0 and F2-F9.', 1;
 
 IF EXISTS (
     SELECT index_event_id

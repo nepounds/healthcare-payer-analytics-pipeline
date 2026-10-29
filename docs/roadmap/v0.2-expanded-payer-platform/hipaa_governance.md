@@ -1,4 +1,4 @@
-# v0.2bigdaddy HIPAA-Aware Governance Design
+# v0.2 Expanded Payer Analytics Platform HIPAA-Aware Governance Design
 
 ## Positioning
 

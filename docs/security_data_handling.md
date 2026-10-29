@@ -38,7 +38,7 @@ https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html
 
 Because this repository intentionally contains synthetic data only, the portfolio should say that it is **HIPAA-aware in design** rather than “HIPAA compliant.”
 
-## Deferred to v0.2bigdaddy
+## Deferred to v0.2 Expanded Payer Analytics Platform
 
 - fuller role-based access-control example;
 - security control matrix;

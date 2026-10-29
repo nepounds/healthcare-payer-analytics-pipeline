@@ -50,4 +50,4 @@ denominator = 40
 
 ## Important limitations
 
-The implementation uses project-owned encounter/diagnosis rules. It does not infer principal diagnosis, does not implement unsupported readmission logic, and does not claim licensed value sets or official HEDIS compliance.
+The implementation uses project-owned encounter/diagnosis rules, including ICD-10-CM prefixes `F0` and `F2`–`F9` with `F10`–`F19` excluded. It does not infer principal diagnosis, does not implement unsupported readmission/transfer exclusions, and does not claim licensed value sets or official HEDIS compliance.

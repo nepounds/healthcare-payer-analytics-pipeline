@@ -334,7 +334,7 @@ Source transaction end dates equal to `1970-01-01` or earlier than the correspon
 | `licensed_spec_flag` | constrained to 0 |
 | `active_flag` | active-rule indicator |
 
-Current seeded rules: inpatient index encounter, ICD-10-CM `F*` behavioral-health diagnosis proxy, and ambulatory/outpatient follow-up encounter types.
+Current seeded rules: inpatient index encounter, project-owned ICD-10-CM behavioral-health prefixes `F0` and `F2`–`F9` (excluding `F10`–`F19`), and ambulatory/outpatient follow-up encounter types.
 
 These rows are not official NCQA value sets.
 

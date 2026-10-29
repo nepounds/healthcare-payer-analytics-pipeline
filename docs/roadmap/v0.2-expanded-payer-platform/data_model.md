@@ -1,4 +1,4 @@
-# v0.2bigdaddy Data Model
+# v0.2 Expanded Payer Analytics Platform Data Model
 
 ## Shared core entities
 

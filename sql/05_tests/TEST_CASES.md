@@ -27,7 +27,7 @@ The original design catalog used `T-FUH-001` through `T-FUH-022` for scenario pl
 | `T-FUH-012` | earliest qualifying follow-up | implemented by deterministic `TOP (1)` selection; executable evidence `T-FUH-064`, `T-FUH-065` |
 | `T-FUH-013`, `T-FUH-014` | age boundary | implemented as generic age-rule validation; executable evidence `T-FUH-036` |
 | `T-FUH-015` | project-defined BH diagnosis qualification | implemented with typed `core.condition` evidence; executable evidence `T-FUH-029`, `T-FUH-034`, `T-FUH-053` |
-| `T-FUH-016` | distinct intentional-self-harm rule | **not separately implemented in v0.1**; current project-owned proxy is the documented ICD-10-CM `F*` behavioral-health rule |
+| `T-FUH-016` | distinct intentional-self-harm rule | **not separately implemented in v0.1**; current project-owned proxy uses ICD-10-CM `F0` and `F2`–`F9` and excludes `F10`–`F19` |
 | `T-FUH-017` | qualifying follow-up service rule | implemented; executable evidence `T-FUH-048`, `T-FUH-052`, `T-FUH-053` |
 | `T-FUH-019` | fixture lineage | implemented; executable evidence `T-FUH-040`–`T-FUH-044`, `T-FUH-067`–`T-FUH-074` |
 | `T-FUH-020` | multiple eligible episodes | supported by event-grain design and uniqueness rules; no dedicated multi-episode fixture is currently required for acceptance |

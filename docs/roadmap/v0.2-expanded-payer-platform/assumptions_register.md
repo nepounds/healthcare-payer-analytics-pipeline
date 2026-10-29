@@ -1,4 +1,4 @@
-# v0.2bigdaddy Assumptions Register
+# v0.2 Expanded Payer Analytics Platform Assumptions Register
 
 Carry forward every unresolved v0.1 assumption and add domain-specific assumptions.
 

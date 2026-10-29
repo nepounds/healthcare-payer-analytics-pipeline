@@ -51,8 +51,40 @@ IF (
     WHERE measure_id = 'FUH_STYLE_MY2025'
       AND active_flag = 1
       AND licensed_spec_flag = 0
-) <> 4
-    THROW 52303, 'T-FUH-097 failed: expected four active non-licensed Phase 3 reference rules.', 1;
+) <> 12
+OR (
+    SELECT COUNT_BIG(*)
+    FROM ref.measure_value_set
+    WHERE measure_id = 'FUH_STYLE_MY2025'
+      AND value_set_name = 'INDEX_ENCOUNTER_TYPE'
+      AND active_flag = 1
+) <> 1
+OR (
+    SELECT COUNT_BIG(*)
+    FROM ref.measure_value_set
+    WHERE measure_id = 'FUH_STYLE_MY2025'
+      AND value_set_name = 'BEHAVIORAL_HEALTH_DIAGNOSIS'
+      AND active_flag = 1
+      AND UPPER(code_system) = 'ICD-10-CM'
+      AND match_type = 'PREFIX'
+      AND UPPER(code_value) IN ('F0', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9')
+) <> 9
+OR EXISTS (
+    SELECT 1
+    FROM ref.measure_value_set
+    WHERE measure_id = 'FUH_STYLE_MY2025'
+      AND value_set_name = 'BEHAVIORAL_HEALTH_DIAGNOSIS'
+      AND active_flag = 1
+      AND UPPER(code_value) NOT IN ('F0', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9')
+)
+OR (
+    SELECT COUNT_BIG(*)
+    FROM ref.measure_value_set
+    WHERE measure_id = 'FUH_STYLE_MY2025'
+      AND value_set_name = 'FOLLOWUP_ENCOUNTER_TYPE'
+      AND active_flag = 1
+) <> 2
+    THROW 52303, 'T-FUH-097 failed: expected 1 index rule, 9 non-substance BH prefixes, and 2 follow-up encounter rules.', 1;
 
 -- T-FUH-098: measure/reporting views must not depend on the 5.2M-row transaction table.
 IF EXISTS (

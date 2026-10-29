@@ -1,10 +1,10 @@
-# v0.2bigdaddy Skill Coverage
+# v0.2 Expanded Payer Analytics Platform Skill Coverage
 
 ## Skills strengthened beyond v0.1
 
 ### SQL
 
-v0.2bigdaddy naturally adds:
+v0.2 Expanded Payer Analytics Platform naturally adds:
 
 - more complex window functions;
 - `LAG` for episode spacing/new-event logic;

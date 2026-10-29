@@ -1,4 +1,4 @@
-# v0.2bigdaddy Pipeline and Orchestration
+# v0.2 Expanded Payer Analytics Platform Pipeline and Orchestration
 
 ## Goal
 

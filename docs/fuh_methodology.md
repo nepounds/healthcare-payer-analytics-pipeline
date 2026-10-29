@@ -42,7 +42,7 @@ A candidate requires:
 - at least one linked `core.condition` matching the project-owned behavioral-health diagnosis rule;
 - diagnosis evidence from a typed `core.condition.code_system`.
 
-The current public-portfolio diagnosis proxy is ICD-10-CM `F*`. This is deliberately broad and is **not** represented as an official NCQA FUH value set.
+The current public-portfolio diagnosis proxy uses ICD-10-CM prefixes `F0` and `F2`–`F9`. The `F1x` block (`F10`–`F19`) is excluded so substance-use disorders are not swept into this FUH-style proxy. The remaining rule is still deliberately broad and is **not** represented as an official NCQA FUH value set.
 
 The project does not infer principal diagnosis from `core.claim_diagnosis` position 1 or from encounter reason fields.
 
