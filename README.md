@@ -1,6 +1,6 @@
 # Healthcare Payer Analytics Pipeline
 
-A portfolio project modeling a synthetic North Carolina Medicaid managed-care analytics workflow from source ingestion through payer reporting.
+A portfolio project modeling a synthetic North Carolina Medicaid managed-care analytics workflow from source ingestion through payer quality reporting.
 
 ## Current milestone — Quality Performance
 
@@ -8,29 +8,41 @@ Development is intentionally sequenced so the first complete business-facing mil
 
 **synthetic source data → SQL Server raw/core model → FUH-style performance measure → quality analysis → Excel reconciliation → Power BI**
 
-The Quality Performance milestone centers on an educational approximation of Follow-Up After Hospitalization for Mental Illness (FUH) using publicly available measure descriptions and explicitly documented assumptions. It also adds trend analysis, population stratification, gap reporting, physical-health context, and a small pharmacy integration so the result behaves like an analyst workflow rather than a single measure query.
+The implemented SQL milestone now includes:
 
-The project does not reproduce licensed HEDIS specifications and does not claim certified HEDIS results.
+- reproducible Microsoft SQL Server ingestion and a typed relational core model;
+- payer/enrollment, encounter, condition, claim, provider, and organization relationships;
+- a project-owned FUH-style behavioral-health performance measure for measurement year 2025;
+- auditable index-event eligibility and enrollment logic;
+- auditable follow-up-event qualification with explicit same-day handling;
+- event-level denominator/numerator results and aggregate rates;
+- payer/month, demographic, follow-up-timing, and open-gap analytical reporting;
+- executable QA with deterministic fixture acceptance tests.
 
-## Full project direction
+The controlled fixture benchmark is:
 
-The Quality Performance milestone is **not the end of the project**. After it is stable, development continues into the expanded payer platform under `docs/roadmap/v0.2bigdaddy/`, including:
+- denominator: **40**;
+- 7-day numerator: **18**;
+- 30-day numerator: **32**;
+- 7-day rate: **45.00%**;
+- 30-day rate: **80.00%**.
 
-- IET-style quality measurement;
-- claims operations analytics;
-- finance and utilization analytics;
-- network analytics;
-- larger-scale performance testing;
-- governance/audit enhancements;
-- orchestration and automation.
+The project does **not** reproduce licensed HEDIS specifications and does not claim certified HEDIS results. The FUH implementation is HEDIS-oriented/FUH-style for portfolio demonstration only.
 
-The roadmap is being reordered, not reduced.
+## Implemented data scale
 
-## Initial development scale
+Current validated core counts for the pinned source package:
 
-Start with approximately **5,000 synthetic members**.
-
-Scale only after the end-to-end quality logic is correct and validated.
+- members: 5,671;
+- payers: 10;
+- enrollment spans: 36,632;
+- organizations: 1,662;
+- providers: 1,662;
+- encounters: 313,094;
+- conditions: 194,647;
+- claims: 573,681;
+- claim diagnoses: 825,929;
+- claim transactions: 5,220,492.
 
 ## Stack
 
@@ -41,28 +53,39 @@ Scale only after the end-to-end quality logic is correct and validated.
 - Power BI Desktop
 - Git / GitHub
 
-## Active Quality milestone schemas
+## Active schemas
 
 - `raw`
 - `core`
 - `ref`
 - `measure`
 
-Additional `stg`, `mart`, and `audit` schemas are introduced later when the expanded platform justifies them.
+## FUH-style measure architecture
 
-## Repository status
+```text
+ref.measure_definition / ref.measure_value_set
+                       |
+                       v
+          measure.fuh_index_event_detail
+                       |
+                       v
+        measure.fuh_followup_event_detail
+                       |
+                       v
+             measure.fuh_measure_result
+                /                 \
+               v                   v
+measure.fuh_measure_summary   analytical reporting views
+```
 
-Keep the repository private during initial construction.
+See `sql/04_measure/fuh/README.md` for execution order and `docs/fuh_methodology.md` for implemented business rules and limitations.
 
-The Quality Performance milestone is ready for a public portfolio release when it is:
+## Current status
 
-1. working end to end;
-2. tested and reproducible;
-3. reconciled in Excel;
-4. reportable in Power BI;
-5. documented and screenshot-ready;
-6. understandable to a hiring manager in roughly two minutes.
+- Phase 0 — environment/setup: complete.
+- Phase 1 — raw ingestion: complete.
+- Phase 2 — typed core relational model: complete and validated.
+- Phase 3 — performance-measure and quality-analytics SQL layer: complete and validated after the Phase 3 closeout smoke test passes.
+- Next milestone work: Excel reconciliation, Power BI presentation, and portfolio publication.
 
-See `docs/build_plan.md` and `docs/assumptions_register.md`.
-
-The expanded platform plan remains under `docs/roadmap/v0.2bigdaddy/`.
+The full project can later expand beyond this milestone, but unsupported domains are not manufactured inside the current Phase 3 implementation. In particular, the current measure layer does not claim official NCQA compliance, licensed value sets, pharmacy integration, physical-health integration, disability analysis, cultural-factor analysis, or regulatory submission capability.

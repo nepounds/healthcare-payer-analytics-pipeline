@@ -292,100 +292,180 @@ There is no separate Phase 2 `core.claim_line`. The source is transaction/event-
 
 `raw.claim_transaction.PLACEOFSERVICE` has mixed semantics in the combined source package. Ordinary Synthea rows use organization resource identifiers, while controlled FUH fixture transactions use POS-style values such as `11` and `21`. Core therefore preserves the raw value in `source_place_value` and populates `place_organization_id` only when the value resolves to `core.organization`.
 
-`raw.claim_transaction.PATIENTINSURANCEID` is also retained as source lineage rather than promoted to a payer or enrollment foreign key. The actual payer relationships used by the current core model live on `core.claim`.
+`raw.claim_transaction.PATIENTINSURANCEID` is retained as source lineage rather than promoted to a payer or enrollment foreign key. Synthea v4.0.0 writes a plan-record/member-like source identifier in this field, but the authoritative combined source does not support a universal relational FK and controlled fixtures use the field differently. The payer relationships used by current analytics therefore come from `core.claim` and `core.enrollment_span`.
 
 Source transaction end dates equal to `1970-01-01` or earlier than the corresponding service start date are normalized to `NULL`; unparseable dates still fail the load. The raw record remains available through `source_transaction_id` for audit.
 
-## `ref.date`
+## `ref.measure_definition`
 
-**Grain:** one row per calendar date.
+**Status:** implemented.
 
-Suggested fields include date, month, quarter, year, month start/end, week, and other reporting attributes needed by Power BI.
+**Grain:** one row per configured measure/methodology definition.
+
+| Column | Purpose |
+|---|---|
+| `measure_id` | stable measure identifier; current value `FUH_STYLE_MY2025` |
+| `measure_name` | descriptive portfolio measure name |
+| `measurement_year` | configured measurement year |
+| `analysis_date` | fixed reproducibility/as-of date |
+| `methodology_version` | documented rules version |
+| `hedis_oriented_flag` | 1 for the current HEDIS-oriented portfolio measure |
+| `official_hedis_flag` | constrained to 0 |
+| `active_flag` | active configuration indicator |
+| `source_note` | limitation/source note |
+| `created_at_utc`, `updated_at_utc` | configuration audit timestamps |
 
 ## `ref.measure_value_set`
 
-**Grain:** one row per project-defined measure/value-set/code relationship.
+**Status:** implemented.
 
-Suggested columns:
-
-| Column | Purpose |
-|---|---|
-| `measure_id` | e.g. `FUH_APPROX` |
-| `value_set_name` | project-defined grouping |
-| `code_system` | ICD-10-CM, CPT, HCPCS, POS, etc. |
-| `code` | code used by project |
-| `effective_start_date` | optional |
-| `effective_end_date` | optional |
-| `source_note` | where the approximation came from |
-| `licensed_spec_flag` | expected false for public project |
-
-Do not represent this table as an official NCQA value set.
-
-## `measure.fuh_episode_detail`
-
-**Grain:** one row per **candidate FUH discharge episode**, before final denominator filtering.
-
-This is the canonical column definition for the FUH audit table. Other project documents should link here instead of maintaining duplicate field lists.
-
-The table retains candidate episodes that are later found ineligible or excluded so a reviewer can see **why an episode did or did not enter the denominator**.
+**Grain:** one row per project-defined measure/reference rule.
 
 | Column | Purpose |
 |---|---|
-| `episode_id` | stable identifier for the candidate discharge episode |
-| `member_id` | member foreign key |
-| `index_admission_date` | admission date for the candidate hospitalization |
-| `index_discharge_date` | discharge date for the candidate hospitalization |
-| `measurement_year` | reporting year assigned to the candidate discharge |
-| `age_at_discharge` | member age on the discharge date |
-| `diagnosis_group` | project-defined qualifying diagnosis grouping |
-| `candidate_flag` | candidate discharge met the initial event-identification rule |
-| `age_eligible_flag` | passed age requirement |
-| `enrollment_eligible_flag` | passed continuous medical + behavioral-health coverage rule |
-| `measurement_window_eligible_flag` | discharge falls within January 1–December 1 candidate window |
-| `eligible_flag` | passed project eligibility requirements before exclusions |
-| `exclusion_flag` | episode is excluded by a project-defined exclusion |
-| `exclusion_reason` | human-readable reason/code for exclusion |
-| `denominator_flag` | 1 only when the candidate is eligible and not excluded |
-| `first_qualifying_followup_date` | earliest qualifying follow-up after discharge |
-| `days_to_followup` | days from discharge to first qualifying follow-up |
-| `fuh_7d_flag` | denominator episode met 7-day numerator |
-| `fuh_30d_flag` | denominator episode met 30-day numerator |
-| `seven_day_deadline` | discharge date + 7 days |
-| `thirty_day_deadline` | discharge date + 30 days |
-| `seven_day_gap_status` | complete/open/missed/not-applicable status |
-| `thirty_day_gap_status` | complete/open/missed/not-applicable status |
-| `days_remaining_7d` | days remaining in 7-day window as of configured analysis date |
-| `days_remaining_30d` | days remaining in 30-day window as of configured analysis date |
-| `assigned_provider_id` | provider attribution used for operational reporting when available |
-| `member_county` | member county used for stratification |
-| `synthetic_fixture_flag` | 1 when the episode was deliberately injected for controlled synthetic coverage/testing |
-| `assumption_version` | version/tag tying the output to the documented rule set |
-| `pipeline_run_id` | pipeline execution identifier for reproducibility |
+| `measure_value_set_id` | surrogate rule key |
+| `measure_id` | FK to `ref.measure_definition` |
+| `value_set_name` | rule group such as index type, follow-up type, BH diagnosis |
+| `code_system` | source semantic/coding-system label |
+| `code_value` | project-owned match value |
+| `match_type` | `EXACT` or `PREFIX` |
+| `effective_start_date`, `effective_end_date` | optional rule-effective dates |
+| `source_note` | project rule/source explanation |
+| `licensed_spec_flag` | constrained to 0 |
+| `active_flag` | active-rule indicator |
 
-### Rate calculation
+Current seeded rules: inpatient index encounter, ICD-10-CM `F*` behavioral-health diagnosis proxy, and ambulatory/outpatient follow-up encounter types.
 
-FUH rates use only rows where:
+These rows are not official NCQA value sets.
 
-```text
-denominator_flag = 1
-```
+## `measure.fuh_index_event_detail`
 
-Excluded and otherwise ineligible candidate rows remain in this audit table but do not contribute to the denominator.
+**Status:** implemented view.
 
-## `measure.fuh_summary`
+**Grain:** one row per candidate inpatient behavioral-health index encounter/discharge.
 
-**Grain:** one row per reporting period/stratification combination used by the report.
+Key fields include:
 
-Possible dimensions:
+- measure/methodology/year/analysis-date configuration;
+- index event/member/encounter/optional claim identifiers;
+- admission/discharge dates and 7-/30-day deadlines;
+- typed diagnosis evidence from `core.condition`;
+- encounter payer and matched enrollment span;
+- medical/BH benefit flags;
+- organization/provider/member demographic context;
+- `candidate_flag`, age/window/enrollment eligibility flags, final `eligibility_flag`;
+- `ineligibility_reason`;
+- fixture and source/pipeline lineage.
 
-- measurement year;
-- month or quarter;
-- county;
-- age band;
-- provider/facility where appropriate.
+Eligibility requires age 6+, discharge January 1–December 1, and a payer-matched continuous enrollment span covering discharge through day 30 with both benefit flags = 1.
 
-## `measure.fuh_open_gap`
+## `measure.fuh_followup_event_detail`
 
-**Grain:** one row per currently actionable follow-up gap.
+**Status:** implemented view.
 
-This object may be a view over `fuh_episode_detail` rather than a physical table.
+**Grain:** one row per eligible index event / qualifying follow-up encounter pair in day 0 through day 30.
+
+Key fields include:
+
+- index/member identifiers and deadlines;
+- follow-up encounter and optional claim identifiers;
+- follow-up date/time/type;
+- typed diagnosis evidence;
+- qualification source;
+- `days_from_index`;
+- `same_day_followup_flag`;
+- `qualifies_7d_flag`;
+- `qualifies_30d_flag`;
+- index/follow-up payer/provider/organization context;
+- fixture/source/pipeline lineage.
+
+Day 0 remains visible for audit but cannot receive numerator credit.
+
+## `measure.fuh_measure_result`
+
+**Status:** implemented view.
+
+**Grain:** one row per final denominator event.
+
+Key fields include:
+
+- index/member/claim/encounter identifiers;
+- index discharge date;
+- payer/enrollment/provider/organization/demographic dimensions;
+- `denominator_flag`;
+- first deterministic 7-day qualifying follow-up identifiers/date and `days_to_7d_followup`;
+- `numerator_7d_flag`;
+- first deterministic 30-day qualifying follow-up identifiers/date and `days_to_30d_followup`;
+- `days_to_first_qualifying_followup`;
+- `numerator_30d_flag`;
+- fixture/source/pipeline lineage.
+
+Only `fuh_index_event_detail` rows with `eligibility_flag = 1` enter this view.
+
+## `measure.fuh_measure_summary`
+
+**Status:** implemented view.
+
+**Grain:** one row per population scope: `ALL`, `FIXTURE`, `NON_FIXTURE`.
+
+Columns:
+
+- measure/methodology/year/analysis date;
+- population scope;
+- denominator;
+- 7-day numerator;
+- 30-day numerator;
+- 7-day percentage rate;
+- 30-day percentage rate.
+
+A zero denominator returns `NULL` for rates.
+
+Controlled fixture expectation: 40 denominator, 18 seven-day numerator, 32 thirty-day numerator, 45.00% and 80.00%.
+
+## `measure.fuh_report_payer_monthly`
+
+**Status:** implemented view.
+
+**Grain:** one row per measurement year / discharge month / payer / fixture scope.
+
+Outputs denominator/numerators, rates, and average days to qualifying 30-day follow-up.
+
+## `measure.fuh_report_demographic`
+
+**Status:** implemented view.
+
+**Grain:** one row per measurement year / age band / sex group / fixture scope.
+
+Outputs denominator/numerators and rates.
+
+## `measure.fuh_report_followup_timing`
+
+**Status:** implemented view.
+
+**Grain:** one row per measurement year / timing band / fixture scope.
+
+Timing bands:
+
+- `01_DAY_1_7`;
+- `02_DAY_8_14`;
+- `03_DAY_15_30`;
+- `04_NO_30D_FOLLOWUP`.
+
+Outputs episode count, percent of denominator, and average follow-up timing where applicable.
+
+## `measure.fuh_open_gap_detail`
+
+**Status:** implemented view.
+
+**Grain:** one row per denominator event that missed the 7-day numerator.
+
+`gap_status` is:
+
+- `MISSED_7D_MET_30D`; or
+- `MISSED_30D`.
+
+The view retains member/index/payer/demographic/source lineage for audit and quality-improvement-oriented follow-up analysis.
+
+## Measure-layer limitation
+
+The measure layer does not implement principal-diagnosis-dependent readmission exclusions, official licensed value sets, pharmacy integration, physical-health integration, disability/cultural-factor analysis, or regulatory submission logic. Those capabilities are not supported by the current v0.1 source/specification package and are not manufactured in this portfolio layer.

@@ -1,51 +1,10 @@
 # Quality Performance Milestone Test Case Catalog
 
-This file is the human-readable test catalog. Matching executable T-SQL tests will be added in this directory as measure logic is built.
-
-Test IDs are referenced directly from `docs/assumptions_register.md`.
-
-## Data / pipeline tests
-
-| Test ID | Rule | Expected result |
-|---|---|---|
-| `T-DATA-001` | Synthetic population is the intended fictional NC Medicaid population | Population/profile checks pass |
-| `T-DATA-002` | Provider relationships used for attribution are present and valid | No unexpected orphan attribution keys |
-| `T-DATA-003` | FUH episode sufficiency check after initial load | At least 30 usable FUH denominator episodes per measurement year, or controlled fixture augmentation is triggered |
-| `T-PIPE-001` | Fixed analysis date controls open-window calculations | Same source + same config produces same result across reruns |
-| `T-SEC-001` | Repository contains synthetic data only and no committed secrets | Repository scan/check passes |
-| `T-DOC-001` | Public documentation labels FUH as an educational approximation | Required disclaimer is present |
-| `T-VAL-001` | Excel episode reconciliation agrees with SQL for controlled sample | No unexplained variance |
-| `T-BI-001` | Power BI consumes SQL episode results rather than rebuilding eligibility | Semantic model contains presentation logic only |
-
+This file is the human-readable test catalog for executable SQL QA and documented methodology boundary scenarios.
 
 ## Core relational-model tests
 
-| Test ID | Rule | Expected result |
-|---|---|---|
-| `T-CORE-001` | `core.member` preserves one row per raw patient/source patient ID | Core member count reconciles to `raw.patient`; no duplicate source patient IDs |
-| `T-CORE-002` | `core.payer` preserves one row per raw payer/source payer ID | Core payer count reconciles to `raw.payer`; no duplicate source payer IDs |
-| `T-CORE-003` | Enrollment normalization preserves every raw payer-transition row | `SUM(source_rows_merged)` equals `COUNT(*)` from `raw.payer_transition` |
-| `T-CORE-004` | Continuous enrollment spans are fully normalized | No overlapping or directly adjacent spans remain in the same member/payer/benefit/lineage partition |
-| `T-CORE-005` | Enrollment relationships resolve to valid members and payers | No orphan `member_id` or `payer_id` values |
-| `T-CORE-006` | A-018 benefit approximation is applied consistently | Medicaid spans are 1/1 for medical/BH benefits; other primary payer spans are 0/0 |
-| `T-CORE-007` | `core.organization` preserves one row per raw organization/source organization ID | Core organization count reconciles to `raw.organization`; source IDs are unique |
-| `T-CORE-008` | `core.provider` preserves one row per raw provider/source provider ID | Core provider count reconciles to `raw.provider`; source IDs are unique |
-| `T-CORE-009` | Provider-to-organization relationships are valid | No orphan provider organization keys; raw provider organization attribution is preserved |
-| `T-CORE-010` | Network required fields, lineage, and fixture handling are valid | Required fields are populated; lineage reconciles; fixture preservation is consistent with source |
-| `T-CORE-011` | `core.encounter` preserves one row per raw encounter/source encounter ID | Encounter count reconciles to `raw.encounter`; source IDs and PKs are unique |
-| `T-CORE-012` | Encounter relationships, chronology, and typed numeric fields are valid | Member/provider/organization/payer links resolve; dates and costs are valid |
-| `T-CORE-013` | `core.condition` preserves one row per raw condition record | Condition count reconciles to `raw.condition`; required typed fields are populated |
-| `T-CORE-014` | Condition relationships, coding-system context, and chronology are valid | Member/encounter links resolve where supplied; code system is retained; dates are valid |
-| `T-CORE-015` | Controlled encounter/condition fixture lineage is preserved | Fixture counts reconcile and fixture conditions retain ICD-10-CM lineage |
-| `T-CORE-016` | `core.claim` preserves one row per raw claim/source claim ID | Claim count reconciles to `raw.claim`; source IDs and PKs are unique; required fields are populated |
-| `T-CORE-017` | Claim relationships and typed source fields are valid | Member/encounter/provider/payer relationships resolve and match the source |
-| `T-CORE-018` | Claim diagnoses expand at one row per populated source diagnosis position | Core row count reconciles to populated DIAGNOSIS1-8 positions; claim/sequence is unique |
-| `T-CORE-019` | `core.claim_transaction` preserves one row per raw transaction/source transaction ID | Transaction count reconciles 1:1; source IDs and PKs are unique; required fields are populated |
-| `T-CORE-020` | Claim-to-transaction relationships and preserved source fields remain coherent | Claim/member/encounter/provider links are valid and raw `PATIENTINSURANCEID` is preserved exactly |
-| `T-CORE-021` | Transaction dates, diagnosis references, and mixed place-value semantics are valid | Invalid source end dates normalize to `NULL`; diagnosis references resolve; organization place values map correctly |
-| `T-CORE-022` | Controlled claim/transaction fixture lineage is preserved | Fixture claim/diagnosis/transaction counts reconcile and POS-style place values are retained |
-
-Executable files:
+Implemented files:
 
 ```text
 000_validate_core_foundation.sql  # T-CORE-001 through T-CORE-006
@@ -54,56 +13,116 @@ Executable files:
 003_validate_core_claims.sql      # T-CORE-016 through T-CORE-022
 ```
 
-## FUH denominator and numerator boundary tests
+These validate source/core reconciliation, uniqueness, required fields, relationship integrity, source semantics, dates, fixture lineage, enrollment normalization, and claim/transaction modeling.
 
-| Test ID | Scenario | Expected result |
+## Historical FUH boundary-scenario catalog
+
+The original design catalog used `T-FUH-001` through `T-FUH-022` for scenario planning. Those IDs remain useful documentation, but not every scenario has a dedicated injected edge-case fixture in v0.1.
+
+| Scenario IDs | Design intent | Current implementation status |
 |---|---|---|
-| `T-FUH-001` | Qualifying follow-up occurs on the discharge date | Does **not** count for 7-day or 30-day numerator |
-| `T-FUH-002` | First qualifying follow-up occurs 1 day after discharge | Counts for 7-day and 30-day numerator |
-| `T-FUH-003` | First qualifying follow-up occurs 7 days after discharge | Counts for 7-day and 30-day numerator |
-| `T-FUH-004` | First qualifying follow-up occurs 8 days after discharge | Fails 7-day; counts for 30-day |
-| `T-FUH-005` | First qualifying follow-up occurs 30 days after discharge | Fails 7-day; counts for 30-day |
-| `T-FUH-006` | First qualifying follow-up occurs 31 days after discharge | Fails both rates |
-| `T-FUH-007` | Enrollment is continuous from discharge date through day 30 | Episode remains eligible |
-| `T-FUH-008` | Acute readmission/direct transfer within 30 days for qualifying mental-health / self-harm diagnosis | Count only the last qualifying discharge |
-| `T-FUH-009` | Acute readmission/direct transfer within 30 days for another principal diagnosis | Exclude the affected denominator episode(s) per project rule |
-| `T-FUH-010` | Nonacute readmission/direct transfer within 30 days | Exclude affected discharge |
-| `T-FUH-011` | Psychiatric residential treatment within 30-day window | Do not apply the nonacute exclusion solely because of psychiatric residential treatment |
-| `T-FUH-012` | Multiple qualifying follow-up visits exist | Select the earliest qualifying post-discharge visit |
-| `T-FUH-013` | Member is exactly age 6 on discharge date | Age-eligible |
-| `T-FUH-014` | Member is under age 6 on discharge date | Not age-eligible |
-| `T-FUH-015` | Discharge diagnosis is inside vs. outside project-defined mental-health code grouping | Only in-group qualifying diagnosis enters candidate denominator |
-| `T-FUH-016` | Intentional self-harm diagnosis meets project-defined position/code rule | Candidate denominator treatment matches documented project rule |
-| `T-FUH-017` | Follow-up service is inside vs. outside project-defined qualifying service set | Only qualifying service can close the gap |
-| `T-FUH-018` | Member has a one-day enrollment gap between discharge and day 30 | Episode fails continuous-enrollment requirement |
-| `T-FUH-019` | Controlled fixture rows are injected | All injected records are tagged `synthetic_fixture_flag = 1` and are reproducible |
-| `T-FUH-020` | Same member has multiple independently eligible discharges in the measurement year | Each qualifying candidate discharge is retained as its own episode; each denominator-eligible discharge can contribute separately |
-| `T-FUH-021` | Candidate discharge occurs on December 1 | Episode remains eligible for denominator evaluation, subject to all other rules |
-| `T-FUH-022` | Candidate discharge occurs after December 1, or qualifying readmission moves the last discharge after December 1 | Episode/affected discharge sequence is excluded from the measurement-year denominator |
+| `T-FUH-001`–`T-FUH-006` | same-day and 1/7/8/30/31-day follow-up boundaries | implemented through generic window/same-day invariants and fixture timing coverage; executable evidence includes `T-FUH-051`, `T-FUH-058`, `T-FUH-059`, `T-FUH-064`, `T-FUH-065`, `T-FUH-074` |
+| `T-FUH-007`, `T-FUH-018` | continuous enrollment / gap handling | implemented through covering-span eligibility checks; executable evidence includes `T-FUH-038`, `T-FUH-039`, `T-FUH-061` |
+| `T-FUH-008`–`T-FUH-011` | readmission/direct-transfer exclusions | **deferred in v0.1** because the current core source does not support trustworthy principal-diagnosis semantics needed for an honest implementation |
+| `T-FUH-012` | earliest qualifying follow-up | implemented by deterministic `TOP (1)` selection; executable evidence `T-FUH-064`, `T-FUH-065` |
+| `T-FUH-013`, `T-FUH-014` | age boundary | implemented as generic age-rule validation; executable evidence `T-FUH-036` |
+| `T-FUH-015` | project-defined BH diagnosis qualification | implemented with typed `core.condition` evidence; executable evidence `T-FUH-029`, `T-FUH-034`, `T-FUH-053` |
+| `T-FUH-016` | distinct intentional-self-harm rule | **not separately implemented in v0.1**; current project-owned proxy is the documented ICD-10-CM `F*` behavioral-health rule |
+| `T-FUH-017` | qualifying follow-up service rule | implemented; executable evidence `T-FUH-048`, `T-FUH-052`, `T-FUH-053` |
+| `T-FUH-019` | fixture lineage | implemented; executable evidence `T-FUH-040`–`T-FUH-044`, `T-FUH-067`–`T-FUH-074` |
+| `T-FUH-020` | multiple eligible episodes | supported by event-grain design and uniqueness rules; no dedicated multi-episode fixture is currently required for acceptance |
+| `T-FUH-021`, `T-FUH-022` | January 1–December 1 measurement-window rule | implemented as generic window validation; executable evidence `T-FUH-037` |
 
-## Executable and planned SQL files
+The deferred scenarios above are documented limitations. They are not silently treated as passing tests.
 
-Implemented core validation:
+## Executable Phase 3 tests
+
+### `004_validate_fuh_index.sql` — T-FUH-023 through T-FUH-044
+
+Validates:
+
+- reference/config objects exist;
+- exactly one active `FUH_STYLE_MY2025` definition;
+- official-HEDIS flag is false;
+- required index/BH reference rules exist;
+- index-event grain uniqueness;
+- required fields;
+- member/encounter/diagnosis/optional-claim integrity;
+- age rule;
+- measurement-window rule;
+- enrollment/benefit auditability;
+- final eligibility flag;
+- fixture lineage and fixture-manifest reconciliation;
+- controlled fixture index count = 40 and eligible count = 40.
+
+### `005_validate_fuh_measure.sql` — T-FUH-045 through T-FUH-075
+
+Validates:
+
+- follow-up/result/summary objects exist;
+- follow-up reference set exists;
+- follow-up grain uniqueness;
+- required follow-up fields;
+- day 0–30 date range;
+- encounter-type and diagnosis qualification;
+- same-member/index integrity;
+- encounter/diagnosis/optional-claim lineage;
+- same-day events receive no numerator credit;
+- 7-day qualification implies 30-day qualification;
+- final denominator grain uniqueness;
+- denominator reconciliation to eligible index events;
+- event-level numerator/denominator consistency;
+- earliest deterministic 7-day/30-day selection;
+- no duplicate numerator credit;
+- fixture lineage;
+- fixture denominator = 40;
+- fixture 7-day numerator = 18;
+- fixture 30-day numerator = 32;
+- fixture rates = 45.00% / 80.00%;
+- day-31 fixture events do not enter the day 0–30 detail layer;
+- aggregate totals reconcile to event-level results.
+
+### `006_validate_fuh_reporting.sql` — T-FUH-076 through T-FUH-094
+
+Validates:
+
+- all four analytical reporting views exist;
+- report grains are unique;
+- numerator/denominator/rate ranges are valid;
+- open-gap classifications match event-level flags;
+- payer/month, demographic, and timing totals reconcile to event-level results;
+- open-gap lineage resolves to authoritative event-level results;
+- fixture benchmark remains 40 / 18 / 32;
+- fixture timing distribution = 18 / 8 / 6 / 8;
+- fixture open-gap distribution = 22 total, including 14 missed-7-day/met-30-day and 8 missed-30-day.
+
+### `007_validate_phase3_closeout.sql` — T-FUH-095 through T-FUH-110
+
+Final smoke validation covering:
+
+- complete Phase 3 object inventory;
+- configuration/reference integrity;
+- no Phase 3 measure dependency on `core.claim_transaction`;
+- denominator/source reconciliation;
+- relationship and lineage integrity;
+- same-day and 7-day/30-day invariants;
+- fixture acceptance benchmark;
+- reporting reconciliation;
+- timing/gap reconciliation;
+- reporting scopes and rate ranges;
+- primary-grain uniqueness;
+- required source lineage.
+
+## Controlled acceptance benchmark
+
+The deterministic fixture package must produce:
 
 ```text
-000_validate_core_foundation.sql
-001_validate_core_network.sql
-002_validate_core_clinical.sql
-003_validate_core_claims.sql
+denominator = 40
+7-day numerator = 18
+30-day numerator = 32
+7-day rate = 45.00%
+30-day rate = 80.00%
 ```
 
-Planned FUH boundary tests:
-
-```text
-001_test_same_day_followup.sql
-002_test_followup_windows.sql
-003_test_continuous_enrollment.sql
-004_test_readmissions_transfers.sql
-005_test_age_boundary.sql
-006_test_first_followup.sql
-007_test_episode_sufficiency.sql
-008_test_multiple_episodes.sql
-009_test_measurement_year_cutoff.sql
-```
-
-The filenames may evolve. The stable identifiers are the `T-*` IDs above.
+These expected values may be hard-coded in fixture acceptance tests because the fixture package exists specifically to provide a deterministic acceptance target. The measure calculations themselves do not hard-code them.

@@ -11,10 +11,10 @@ Design:
   CHARGEID is not treated as a stable service-line number.
 - Keep direct member/encounter/provider relationships from the transaction source so
   transaction-level analysis remains practical and can be checked against the parent claim.
-- Preserve PATIENTINSURANCEID as source_patient_insurance_id rather than a payer FK. In normal
-  Synthea output this field is an insurance-member identifier that resolves to payer_transition.MEMBERID;
-  controlled fixtures currently carry a payer UUID in the same source column, so the combined field
-  has mixed semantics and must remain opaque in core.
+- Preserve PATIENTINSURANCEID as source_patient_insurance_id rather than a payer/enrollment FK.
+  Synthea v4.0.0 writes a plan-record/member-like source identifier in this column, but the authoritative
+  source does not establish a universal relational FK for the combined package; controlled fixtures use
+  the same field differently. The value therefore remains opaque source lineage in core.
 - Preserve PLACEOFSERVICE as source_place_value because the combined source package has mixed
   semantics: normal Synthea rows use organization resource IDs while controlled fixtures use POS-style
   values such as 11 and 21. place_organization_id is populated only when the raw value resolves to a
@@ -128,9 +128,10 @@ GO
 /*
 Upgrade path for an already-created Batch 3 table.
 The first Batch 3 draft incorrectly interpreted raw.claim_transaction.PATIENTINSURANCEID
-as a payer ID. Synthea uses that column as an insurance-member identifier, and the
-controlled fixtures currently use the same source column differently. Preserve the raw
-value as opaque lineage instead of enforcing a false payer relationship.
+as a payer ID. Synthea v4.0.0 writes a plan-record/member-like source identifier in this
+column, but the authoritative source does not establish a universal relational FK and the
+controlled fixtures use the same source column differently. Preserve the raw value as
+opaque lineage instead of enforcing a false payer/enrollment relationship.
 */
 IF EXISTS (
     SELECT 1

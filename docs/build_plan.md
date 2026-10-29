@@ -2,51 +2,25 @@
 
 ## Milestone objective
 
-Build the first complete business-facing slice of the Healthcare Payer Analytics Pipeline around payer quality performance.
+Build a business-facing Healthcare Payer Analytics Pipeline that demonstrates reproducible payer quality measurement, auditable business rules, analytical reporting, and validation in Microsoft SQL Server.
 
-The sequence is optimized to make the project analytically useful early without removing any later payer-platform scope.
+## Phase 0 — Environment/setup
 
-The milestone ends with a reproducible SQL Server quality workflow, Excel reconciliation, Power BI reporting, and portfolio-ready documentation. Development then continues into `docs/roadmap/v0.2bigdaddy/`.
+**Status: complete.**
 
-## Phase 0 — Environment
+Local SQL Server Developer Edition, SSMS, Python environment, repository structure, and database schemas are established.
 
-Deliverables:
+## Phase 1 — Source generation and raw ingestion
 
-- SQL Server Developer Edition installed;
-- SSMS installed;
-- Python environment confirmed;
-- Power BI Desktop confirmed;
-- Excel with Power Query confirmed;
-- repository created;
-- `.gitignore` prevents local database/backups/temp extracts from being committed.
+**Status: complete.**
 
-Exit condition: a trivial Python script can connect to local SQL Server and create/read a test table.
+Deliverables include reproducible Synthea generation, controlled FUH fixtures, source-shaped `raw` tables, load metadata, and source profiling.
 
-## Phase 1 — Source and raw load
+## Phase 2 — Typed core relational model
 
-Deliverables:
+**Status: complete.**
 
-- synthetic-data generator/source selected and documented;
-- initial population approximately 5,000 members;
-- Python loader;
-- `raw` tables;
-- load metadata;
-- row-count checks;
-- deterministic FUH fixture generation.
-
-Practice focus:
-
-- Python file handling;
-- database connection;
-- bulk loading;
-- basic data profiling;
-- reproducible source generation.
-
-Exit condition: raw load can be rerun from scratch with consistent row counts and fixture expectations.
-
-## Phase 2 — Core relational model
-
-Deliverables:
+Implemented entities:
 
 - `core.member`;
 - `core.payer`;
@@ -57,160 +31,141 @@ Deliverables:
 - `core.condition`;
 - `core.claim`;
 - `core.claim_diagnosis`;
-- `core.claim_transaction`;
-- keys, constraints, focused indexes, lineage fields, and executable data-quality checks appropriate to each grain.
+- `core.claim_transaction`.
 
-Implemented scope note: the source supports a transaction/event grain rather than a trustworthy claim-line grain, so Phase 2 does not fabricate `core.claim_line`. A separate provider-location table is also unnecessary for the current source because provider location is represented through `core.provider -> core.organization`. No Phase 2 date/reference table is required to close the relational layer; measure-specific reference/value-set objects belong to Phase 3 when FUH logic is implemented.
+The source is transaction/event-grained, so Phase 2 deliberately does not fabricate a claim-line entity. Claim diagnosis positions are preserved without inferring principal-diagnosis semantics or an unsupported coding system.
 
-Practice focus:
+Executable QA: `T-CORE-001` through `T-CORE-022`.
 
-- data typing and normalization;
-- `INNER JOIN`;
-- `LEFT JOIN`;
-- null checks;
-- duplicate detection;
-- keys and relationships;
-- gaps-and-islands enrollment logic;
-- `GROUP BY`;
-- `HAVING`;
-- `COUNT(DISTINCT)`;
-- source-to-core row-count reconciliation.
+## Phase 3 — Performance measures and quality analytics
 
-Exit condition: keys, grains, row counts, lineage, and relationships are documented and tested; source-to-core transformations can be rerun without unexplained loss or duplication. **Status: complete for the current pinned source and fixture package.**
+**Status: implemented; closeout is complete when `007_validate_phase3_closeout.sql` passes.**
 
-## Phase 3 — FUH performance-measure logic
+### Measure configuration
 
-Deliverables:
+Implemented:
 
-- project-defined diagnosis/service reference sets;
-- candidate episodes;
-- eligibility;
-- exclusions;
-- denominator;
-- candidate follow-up;
-- first qualifying follow-up;
-- 7-day and 30-day flags;
-- candidate-discharge audit table with eligibility, exclusion, and denominator flags;
-- open-gap view;
-- summary output;
-- controlled-fixture validation.
+- `ref.measure_definition`;
+- `ref.measure_value_set`;
+- fixed measurement-year/analysis-date configuration;
+- project-owned diagnosis and encounter-type reference rules;
+- explicit flags preventing the portfolio measure from being represented as official HEDIS.
 
-Practice focus:
+### FUH-style measure pipeline
 
-- CTEs;
-- `CASE`;
-- `ROW_NUMBER`;
-- `DATEADD`;
-- `DATEDIFF`;
-- `LEFT JOIN ... IS NULL`;
-- readable multi-step business logic;
-- auditability and reproducibility.
+Implemented:
 
-Exit condition: all boundary test cases pass and the deterministic fixture package returns the documented expected FUH-7 and FUH-30 results.
+1. `measure.fuh_index_event_detail`
+   - candidate inpatient behavioral-health discharges;
+   - typed diagnosis evidence from `core.condition`;
+   - age and January 1–December 1 measurement-window logic;
+   - payer-specific continuous enrollment through day 30;
+   - medical and behavioral-health benefit requirements;
+   - explicit ineligibility reason;
+   - source/fixture lineage.
 
-## Phase 4 — Quality analysis and reporting layer
+2. `measure.fuh_followup_event_detail`
+   - qualifying ambulatory/outpatient follow-up events;
+   - typed behavioral-health diagnosis evidence;
+   - day-from-index calculation;
+   - same-day visibility with no numerator credit;
+   - 7-day and 30-day qualification flags;
+   - source/fixture lineage.
 
-Deliverables:
+3. `measure.fuh_measure_result`
+   - one row per final denominator event;
+   - deterministic earliest 7-day and 30-day qualifying follow-up;
+   - denominator and numerator flags;
+   - payer/demographic/source lineage.
 
-- monthly and/or quarterly FUH trend output;
-- denominator/numerator volume reporting;
-- open/missed follow-up gap analysis;
-- age/population stratification;
-- payer/coverage stratification where analytically meaningful;
-- physical-health condition/comorbidity context for the FUH population;
-- focused pharmacy integration by promoting the relevant Synthea medication source through `raw`/`core` and producing at least one documented pharmacy-related analysis;
-- report-ready SQL views/tables with clear source lineage;
-- references to source objects and assumptions sufficient to reproduce reported results.
+4. `measure.fuh_measure_summary`
+   - ALL, FIXTURE, and NON_FIXTURE population scopes;
+   - denominator, 7-day numerator, 30-day numerator;
+   - safe decimal rates with `NULL` for a zero denominator.
 
-Practice focus:
+### Analytical reporting
 
-- information synthesis;
-- patterns and trends;
-- population analysis;
-- quality-improvement-oriented gap identification;
-- integrating clinical, coverage, and pharmacy context;
-- user-facing report design;
-- reproducible analytical outputs.
+Implemented:
 
-Exit condition: SQL Server can reproduce the principal quality KPIs, trends, population breakdowns, and gap outputs from documented source objects without manual spreadsheet business logic.
+- `measure.fuh_report_payer_monthly` — payer/month volume, rates, average follow-up timing;
+- `measure.fuh_report_demographic` — age-band/sex summaries;
+- `measure.fuh_report_followup_timing` — timing distribution and percentages;
+- `measure.fuh_open_gap_detail` — episode-level missed-7-day/missed-30-day gap output.
 
-## Phase 5 — Excel reconciliation
+These outputs demonstrate analytical reporting and quality-improvement support without claiming that the project implemented an intervention or improved outcomes.
 
-Deliverables:
+### Phase 3 validation
+
+Executable suites:
+
+```text
+004_validate_fuh_index.sql        # T-FUH-023 through T-FUH-044
+005_validate_fuh_measure.sql      # T-FUH-045 through T-FUH-075
+006_validate_fuh_reporting.sql    # T-FUH-076 through T-FUH-094
+007_validate_phase3_closeout.sql  # T-FUH-095 through T-FUH-110
+```
+
+Controlled acceptance benchmark:
+
+```text
+denominator = 40
+7-day numerator = 18
+30-day numerator = 32
+7-day rate = 45.00%
+30-day rate = 80.00%
+```
+
+### Explicit Phase 3 limitations
+
+The current implementation does not claim:
+
+- official NCQA HEDIS compliance or licensed value sets;
+- principal-diagnosis semantics from `core.claim_diagnosis` or encounter reason fields;
+- a readmission/transfer exclusion that requires trustworthy principal-diagnosis semantics;
+- a separate intentional-self-harm value set;
+- pharmacy or physical-health integration;
+- disability/cultural-factor analysis;
+- regulatory submission capability.
+
+These are documented limitations, not silently invented features.
+
+## Phase 4 — Excel reconciliation
+
+Planned deliverables:
 
 - Power Query connection/import;
-- SQL episode output;
-- filtered source-level validation extract;
-- merge/reconciliation;
-- exception column;
-- pivot summary;
-- slicers;
-- conditional formatting;
-- at least one deliberate discrepancy test proving the workbook surfaces an error.
+- authoritative SQL episode/result extract;
+- source-level validation extract;
+- reconciliation/exception logic;
+- pivot summaries and slicers;
+- deliberate discrepancy test.
 
-Practice focus:
+Exit condition: clean data reconcile to authoritative SQL outputs and a deliberate discrepancy is surfaced clearly.
 
-- Power Query clean/merge/refresh;
-- XLOOKUP;
-- INDEX/MATCH where useful for practice;
-- SUMIFS;
-- COUNTIFS;
-- IFERROR;
-- date functions;
-- pivots;
-- reconciliation and exception handling.
+## Phase 5 — Power BI Quality report
 
-Exit condition: deliberate test discrepancies are visible and explainable, and a clean run reconciles to the authoritative SQL outputs.
+Planned deliverables:
 
-## Phase 6 — Power BI Quality report
-
-Deliverables:
-
-- date dimension;
-- clean relationships;
-- core FUH measures;
-- trend visual;
+- clean relationships/date model as needed;
 - denominator/numerator cards;
-- gap table;
-- population/stratification visuals;
-- physical-health/pharmacy context where useful;
-- useful filters/slicers;
-- simple reusable theme.
+- trend view;
+- timing/gap view;
+- useful subgroup filters;
+- presentation-oriented DAX only.
 
-Practice focus:
+Power BI must consume the SQL-defined measure; it must not recreate eligibility logic.
 
-- star-schema thinking;
-- cardinality;
-- `CALCULATE`;
-- `FILTER`;
-- time intelligence;
-- DAX measures;
-- report formatting.
-
-Power BI may aggregate and present authoritative SQL results, but it should not recreate the FUH eligibility algorithm.
-
-Exit condition: a hiring manager can understand the business problem, measure performance, major trends, and actionable gaps in roughly two minutes.
-
-## Phase 7 — Quality Performance milestone release
+## Phase 6 — Quality Performance milestone release
 
 Deliverables:
 
-- polished README;
-- architecture diagram;
+- polished public README;
 - screenshots;
-- assumptions register;
-- data dictionary;
 - run instructions;
-- limitations;
-- test/reconciliation evidence;
-- clean Git history/repository structure.
+- final limitations;
+- Excel/Power BI evidence;
+- clean Git history.
 
-Exit condition: the Quality Performance milestone works as a stand-alone portfolio artifact and every major technical/analytical claim made about it is supported by a visible project artifact.
+## Later expansion
 
-## Transition condition — continue into the expanded payer platform
-
-The Quality Performance milestone is a checkpoint, **not a project stop condition**.
-
-After the milestone is stable, continue into `docs/roadmap/v0.2bigdaddy/` in the documented order. Later phases retain IET, claims operations, finance, network analytics, scaling, governance, and automation.
-
-Do not interrupt the Quality milestone with later-domain work unless the dependency is required for a current deliverable.
+Additional payer domains may be added after the current milestone when source data and business rules support them. The project should not add pharmacy, physical-health, disability, cultural-factor, or other domains merely to satisfy keywords.

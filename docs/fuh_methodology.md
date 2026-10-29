@@ -2,89 +2,145 @@
 
 ## Important limitation
 
-This project does **not** implement or reproduce the licensed HEDIS FUH technical specification.
+This project does **not** implement or reproduce the licensed NCQA HEDIS FUH technical specification.
 
-It implements a transparent educational approximation using:
+It implements a transparent FUH-style/HEDIS-oriented behavioral-health follow-up performance measure for portfolio demonstration using synthetic data, project-owned rule sets, and explicitly documented assumptions.
 
-- publicly available NCQA measure descriptions;
-- public source documentation;
-- synthetic data;
-- explicitly documented project assumptions.
+Do not describe the output as certified HEDIS, official NCQA FUH, or regulatory-submission ready.
 
-NCQA's public FUH description states that the measure concerns discharges for persons age 6 and older who were hospitalized with a principal diagnosis of mental illness or any diagnosis of intentional self-harm and reports follow-up within 30 days and within 7 days.
+## Implemented measurement configuration
 
-Public reference:
-https://www.ncqa.org/report-cards/health-plans/state-of-health-care-quality-report/follow-up-after-hospitalization-for-mental-illness-fuh/
+- measure ID: `FUH_STYLE_MY2025`;
+- measurement year: 2025;
+- fixed analysis date: 2026-10-18;
+- methodology version: `v0.1`;
+- official HEDIS flag: false.
 
-## Analytical grain
+Configuration lives in `ref.measure_definition` and `ref.measure_value_set`.
 
-FUH is modeled at the **candidate discharge episode** level for auditability.
+## Implemented architecture
 
-`measure.fuh_episode_detail` keeps one row for every candidate discharge identified by the project logic, including candidates later found ineligible or excluded. `denominator_flag = 1` identifies the episodes used in the reported rate.
+The measure is intentionally split into auditable grains:
 
-A member may contribute more than one eligible denominator episode when the documented rules permit it.
-
-The authoritative field list and grain definition live in [`data_dictionary.md`](data_dictionary.md#measurefuh_episode_detail).
-
-## Proposed SQL structure
-
-The implementation should remain readable enough to walk through during an interview.
-
-Recommended shape:
-
-```sql
-WITH candidate_discharges AS (
-    -- Identify possible inpatient behavioral-health discharges
-),
-age_eligible AS (
-    -- Apply project age rule
-),
-enrollment_eligible AS (
-    -- Apply documented enrollment assumption
-),
-excluded_episodes AS (
-    -- Apply project exclusions
-),
-denominator AS (
-    -- Final eligible denominator episodes
-),
-candidate_followups AS (
-    -- Find possible post-discharge follow-up services
-),
-ranked_followups AS (
-    -- ROW_NUMBER() to select the first qualifying follow-up
-),
-episode_results AS (
-    -- Calculate days-to-follow-up and numerator flags
-)
-SELECT ...
+```text
+measure.fuh_index_event_detail
+        -> measure.fuh_followup_event_detail
+        -> measure.fuh_measure_result
+        -> measure.fuh_measure_summary
+        -> reporting views / open-gap detail
 ```
 
-A giant monolithic query is specifically discouraged.
+A single giant measure query is intentionally avoided.
 
-## v0.1 rule authority
+## Index-event qualification
 
-The implemented v0.1 boundary and eligibility rules are maintained in [`assumptions_register.md`](assumptions_register.md).
+`measure.fuh_index_event_detail` has one row per candidate inpatient behavioral-health index encounter/discharge.
 
-Important locked rules include:
+A candidate requires:
 
-- A-009 — continuous medical and behavioral-health enrollment from discharge through day 30, with no gap;
-- A-010 — explicit readmission/direct-transfer handling;
-- A-015 — follow-up on the discharge date does not count;
-- A-017 — candidate discharges occur January 1 through December 1 of the measurement year, with special handling when a readmission/transfer moves the last discharge past December 1.
+- source encounter type matching the project-owned inpatient rule;
+- at least one linked `core.condition` matching the project-owned behavioral-health diagnosis rule;
+- diagnosis evidence from a typed `core.condition.code_system`.
 
-Do not restate or independently “choose” these rules in this methodology file. If a rule changes, update the assumptions register first.
+The current public-portfolio diagnosis proxy is ICD-10-CM `F*`. This is deliberately broad and is **not** represented as an official NCQA FUH value set.
 
-## Episode audit output
+The project does not infer principal diagnosis from `core.claim_diagnosis` position 1 or from encounter reason fields.
 
-`measure.fuh_episode_detail` is the project’s auditable candidate-episode table.
+## Eligibility
 
-Its **only canonical column definition** is in [`data_dictionary.md`](data_dictionary.md#measurefuh_episode_detail).
+A candidate is eligible when:
 
-The reported denominator is the subset where `denominator_flag = 1`. Excluded and ineligible candidates remain in the audit table with their flags/reasons populated.
+- age is 6 or older on discharge;
+- discharge occurs January 1 through December 1 of measurement year 2025;
+- the encounter payer is present;
+- one `core.enrollment_span` for that member/payer covers the discharge date through day 30 without a gap;
+- medical and behavioral-health benefit flags are both 1.
 
-## Validation requirements
+The index-event view retains auditable eligibility flags, the matched enrollment span, and an ineligibility reason.
 
-The stable test catalog is [`../sql/05_tests/TEST_CASES.md`](../sql/05_tests/TEST_CASES.md).
+## Follow-up qualification
 
-Do not maintain a separate numbered validation list here. The test catalog is the source of truth for boundary cases and is linked directly from the assumptions register.
+`measure.fuh_followup_event_detail` has one row per eligible index-event / qualifying follow-up encounter pair from day 0 through day 30.
+
+A follow-up requires:
+
+- project-owned encounter type of `ambulatory` or `outpatient`;
+- linked behavioral-health diagnosis evidence matching the typed project-owned diagnosis rule;
+- same member as the index event.
+
+`core.claim` is retained only as optional lineage. `core.claim_transaction` is not required for qualification.
+
+## Follow-up windows
+
+- day 0: visible for audit, does not count;
+- days 1–7: qualifies for both 7-day and 30-day numerator;
+- days 8–30: qualifies for 30-day numerator only;
+- day 31+: outside the measure window.
+
+This implements documented assumption A-015 for same-day handling.
+
+## Final event-level result
+
+`measure.fuh_measure_result` has one row per eligible denominator event.
+
+For each window, the first qualifying follow-up is selected deterministically by follow-up date/time and encounter ID. Multiple qualifying services therefore cannot inflate the numerator.
+
+## Aggregate result
+
+`measure.fuh_measure_summary` reports:
+
+- denominator;
+- 7-day numerator;
+- 30-day numerator;
+- 7-day rate;
+- 30-day rate;
+
+for `ALL`, `FIXTURE`, and `NON_FIXTURE` scopes. A zero denominator returns a `NULL` rate.
+
+Controlled-fixture acceptance result:
+
+```text
+denominator = 40
+7-day numerator = 18
+30-day numerator = 32
+7-day rate = 45.00%
+30-day rate = 80.00%
+```
+
+## Analytical reporting
+
+The measure layer also exposes:
+
+- payer/month performance and volume;
+- age-band/sex performance structures;
+- follow-up timing distributions;
+- open 7-day/30-day gap detail.
+
+These outputs support quality-improvement analysis by identifying timing gaps and lower-performing slices. They do not claim that an intervention was implemented or that patient outcomes improved.
+
+## Current limitations
+
+The v0.1 implementation does not separately implement:
+
+- licensed NCQA value sets;
+- official principal-diagnosis semantics;
+- readmission/transfer exclusion logic that depends on principal diagnosis;
+- a distinct intentional-self-harm value set;
+- pharmacy utilization;
+- physical-health integration;
+- disability/cultural-factor analysis.
+
+The deterministic fixtures exist to exercise measure mechanics, not to represent epidemiology or real payer disparities. Current fixture subgroup/payer differences should not be interpreted as real-world performance findings.
+
+## Validation
+
+Executable Phase 3 QA lives in `sql/05_tests/`:
+
+```text
+004_validate_fuh_index.sql
+005_validate_fuh_measure.sql
+006_validate_fuh_reporting.sql
+007_validate_phase3_closeout.sql
+```
+
+The human-readable test catalog is `sql/05_tests/TEST_CASES.md`.

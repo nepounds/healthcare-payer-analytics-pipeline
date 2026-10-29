@@ -1,69 +1,57 @@
 # v0.1 Assumptions Register
 
-This register records every material judgment call where the educational implementation makes a choice that would normally be governed by an authoritative specification, organizational policy, contractual requirement, or production data definition.
+This register records material judgment calls where the portfolio implementation makes a choice that would normally be governed by an authoritative specification, organizational policy, contractual requirement, or production data definition.
 
 **A documented assumption is preferable to an invisible guess.**
 
 ## Register
 
-| ID | Business rule / issue | v0.1 implementation | Basis | Limitation / risk | Test case | Status |
+| ID | Business rule / issue | v0.1 implementation | Basis | Limitation / risk | Executable evidence | Status |
 |---|---|---|---|---|---|---|
-| A-001 | Population | Fictional North Carolina Medicaid managed care organization | Project scope | Not representative of any real plan or population | `T-DATA-001` | Locked |
-| A-002 | Data privacy | Synthetic data only | Project scope | Does not demonstrate operation with real PHI | `T-SEC-001` | Locked |
-| A-003 | FUH naming | Describe result as FUH-style / educational approximation | NCQA licensing boundary | Not a certified HEDIS result | `T-DOC-001` | Locked |
-| A-004 | FUH age | Age 6+ at qualifying discharge | Public FUH description | Full licensed eligibility criteria are not implemented | `T-FUH-013`, `T-FUH-014` | Locked |
-| A-005 | FUH windows | Report follow-up within 7 days and within 30 days after discharge | Public FUH description | Full licensed numerator detail is not reproduced | `T-FUH-002`–`T-FUH-006` | Locked |
-| A-006 | Mental-health diagnoses | Use project-defined, distributable code grouping | Public/legal source to be documented | Not the proprietary NCQA value set | `T-FUH-015` | Open |
-| A-007 | Intentional self-harm | Include using a distributable project-defined code grouping | Public FUH description + public code source to be documented | Approximation; not NCQA's licensed value set | `T-FUH-016` | Proposed |
-| A-008 | Qualifying follow-up services | Define a transparent project service set from distributable public sources | Public sources + project judgment | May differ from licensed specification | `T-FUH-017` | Open |
-| A-009 | Continuous enrollment and benefits | Require uninterrupted enrollment from the discharge date through 30 days after discharge, with both `medical_benefit_flag = 1` and `behavioral_health_benefit_flag = 1`; no allowable gap | [Johns Hopkins Health Plans, *2026 Quality Measures HEDIS® Toolkit — FUH: Follow-Up After Hospitalization for Mental Illness*](https://www.hopkinsmedicine.org/-/media/johns-hopkins-health-plans/documents/all_plans/2026-hedis-quality-measures-tip-sheet.pdf) | Synthetic coverage data simplify real benefit administration | `T-FUH-007`, `T-FUH-018` | Locked |
-| A-010 | Readmissions / transfers | During the 30-day follow-up period: (1) acute mental-health or intentional-self-harm readmission/direct transfer → count only the last qualifying discharge; (2) acute readmission/direct transfer for another principal diagnosis → exclude the affected discharge episode(s); (3) nonacute readmission/direct transfer → exclude the affected discharge, **except psychiatric residential treatment** | [Johns Hopkins Health Plans, *2026 Quality Measures HEDIS® Toolkit — FUH: Follow-Up After Hospitalization for Mental Illness*, printed p. 195, Denominator Exclusions](https://www.hopkinsmedicine.org/-/media/johns-hopkins-health-plans/documents/all_plans/2026-hedis-quality-measures-tip-sheet.pdf); [Anthem, *HEDIS Coding Booklet 2025*, p. 41, FUH Exclusions](https://providers.anthem.com/docs/gpp/WI_CAID_HedisCoding25.pdf?v=202411151629); [NCQA, *Follow-Up After Hospitalization for Mental Illness (FUH) — HEDIS MY 2025 Draft for Public Comment*, Summary of Changes](https://www.ncqa.org/wp-content/uploads/09.-FUH.pdf) | The current Hopkins 2026 toolkit and Anthem 2025 booklet both explicitly state the psychiatric-residential-treatment exception. The NCQA MY2025 public-comment summary says residential treatment was added to the numerator and removed from denominator-removal criteria, although the detailed nonacute paragraph in that obsolete draft does not display the exception. Exact production implementation remains governed by licensed specifications. | `T-FUH-008`–`T-FUH-011` | Locked |
-| A-011 | As-of date | Store a fixed analysis date in configuration rather than relying on current system date | Reproducibility | Synthetic historical timing differs from production operations | `T-PIPE-001` | Proposed |
-| A-012 | Provider attribution | Use available synthetic rendering/facility relationship | Source availability | May not model real payer attribution rules | `T-DATA-002` | Proposed |
-| A-013 | Excel reconciliation | Reconcile episode-level output, not every raw claim row | Practical validation design | Does not independently rebuild the entire warehouse | `T-VAL-001` | Locked |
-| A-014 | Power BI logic | Power BI consumes SQL-defined episode results; measure eligibility logic remains in SQL | Auditability | Display-only DAX remains in Power BI | `T-BI-001` | Locked |
-| A-015 | Same-day follow-up | A qualifying follow-up service on the discharge date does **not** satisfy either FUH follow-up rate. Day 1 is the day after discharge. | [Johns Hopkins Health Plans, *2026 Quality Measures HEDIS® Toolkit — FUH: Follow-Up After Hospitalization for Mental Illness*](https://www.hopkinsmedicine.org/-/media/johns-hopkins-health-plans/documents/all_plans/2026-hedis-quality-measures-tip-sheet.pdf) | Educational approximation; source logic must still be translated correctly into project service definitions | `T-FUH-001` | Locked |
-| A-016 | Sparse FUH episodes in generated data | The 5,000-member Synthea population was profiled and produced no inpatient mental-health encounters suitable for the FUH denominator. The Quality Performance milestone therefore adds a separate deterministic 2025 FUH fixture package containing 40 eligible psychiatric discharge episodes. Fixtures are generated separately from immutable Synthea source data and carry `synthetic_fixture_flag = 1`. The fixture manifest defines expected results of 18/40 (45.0%) for 7-day follow-up and 32/40 (80.0%) for 30-day follow-up. | Observed Synthea profiling + portfolio/test-data design | Augmented fixtures are intentionally not prevalence-representative and exist to exercise and validate measure logic; they must not be presented as population epidemiology | `T-DATA-003`, `T-FUH-019` | Locked |
-| A-017 | Measurement-year discharge cutoff | Candidate FUH discharges must occur from January 1 through December 1 of the measurement year. Discharges after December 1 are not denominator candidates. If a qualifying acute readmission/direct transfer causes the last discharge to occur after December 1, exclude the affected discharge sequence from the measurement-year denominator. | [Johns Hopkins Health Plans, *2026 Quality Measures HEDIS® Toolkit — FUH: Follow-Up After Hospitalization for Mental Illness*](https://www.hopkinsmedicine.org/-/media/johns-hopkins-health-plans/documents/all_plans/2026-hedis-quality-measures-tip-sheet.pdf); [NCQA, *Follow-Up After Hospitalization for Mental Illness (FUH) — HEDIS MY 2025 Draft for Public Comment*](https://wpcdn.ncqa.org/www-prod/wp-content/uploads/09.-FUH.pdf) | Project follows the public boundary rule but does not claim full licensed HEDIS implementation | `T-FUH-021`, `T-FUH-022` | Locked |
-| A-018 | Benefit coverage derivation | For the Quality Performance milestone, Medicaid enrollment is treated as providing both medical and behavioral-health benefits: `medical_benefit_flag = 1` and `behavioral_health_benefit_flag = 1`; other primary payer spans are assigned `0/0`. These flags are an educational derivation because Synthea does not independently model the benefit carve-outs needed by the FUH rule. Controlled edge-case fixtures may explicitly override this derivation when benefit-eligibility testing is added. | Source-data limitation + project modeling decision | Real payer benefit administration may include carve-outs, partial benefits, or separately administered behavioral-health coverage that this approximation does not represent | `T-CORE-006` | Locked |
-| A-019 | Claim-transaction service end dates | Normalize `raw.claim_transaction.TODATE` to `NULL` in core when it equals the Unix-epoch sentinel date `1970-01-01` or otherwise precedes `FROMDATE`; unparseable dates still fail the load | Observed pinned-source profiling + Synthea v4.0.0 exporter behavior | A null core end date means the source end date was not analytically trustworthy; the raw source value remains available by transaction ID | `T-CORE-021` | Locked |
-| A-020 | Claim-transaction place value | Preserve `raw.claim_transaction.PLACEOFSERVICE` in `source_place_value`; populate `place_organization_id` only when that value resolves to `core.organization` | Observed source profiling: ordinary Synthea rows use organization resource IDs while controlled FUH fixtures use POS-style values `11`/`21` | The combined field cannot be represented honestly as one normalized POS-code column | `T-CORE-021`, `T-CORE-022` | Locked |
-| A-021 | Claim-transaction patient-insurance value | Preserve `raw.claim_transaction.PATIENTINSURANCEID` as opaque `source_patient_insurance_id`; do not enforce a payer or enrollment FK from this field | Synthea v4.0.0 source-code inspection + observed pinned-source behavior + fixture design | The source field does not support a single reliable relational interpretation across the combined source package; payer relationships for current analytics come from `core.claim` | `T-CORE-020` | Locked |
-| A-022 | Claim diagnosis semantics | Preserve claim diagnosis positions 1-8 without assigning a code system or inferring that position 1 is a principal diagnosis | Raw claim structure + transaction diagnosis-reference behavior | Claim diagnosis codes should not be treated as typed ICD/SNOMED values unless a future source or reference mapping establishes that semantic | `T-CORE-018`, `T-CORE-021` | Locked |
-| A-023 | Claim-line representation | Model `claims_transactions.csv` as `core.claim_transaction` at one row per source transaction; retain `CHARGEID` as an opaque source identifier rather than treating it as a stable line number | Source grain + Synthea v4.0.0 exporter design | There is no separate Phase 2 claim-line entity; future line-level modeling would require a source that actually defines a stable service-line grain | `T-CORE-019`, `T-CORE-020` | Locked |
+| A-001 | Population | Fictional North Carolina Medicaid managed-care analytics population | Project scope | Not representative of any real plan or population | Phase 1/2 source profiling | Locked |
+| A-002 | Data privacy | Synthetic data only | Project scope | Does not demonstrate operation with real PHI | repository/source design | Locked |
+| A-003 | FUH naming | Describe result as FUH-style / HEDIS-oriented portfolio demonstration | NCQA licensing boundary | Not a certified HEDIS result | `T-FUH-027`, `T-FUH-096` | Locked |
+| A-004 | FUH age | Age 6+ at candidate discharge | Public FUH description + project rule | Full licensed eligibility criteria are not implemented | `T-FUH-036` | Locked |
+| A-005 | FUH windows | Day 1–7 qualifies for both numerators; day 8–30 qualifies only for 30-day; day 31+ is outside the window | Public FUH description + project rule | Full licensed numerator detail is not reproduced | `T-FUH-051`, `T-FUH-059`, `T-FUH-064`, `T-FUH-065`, `T-FUH-074` | Locked |
+| A-006 | Behavioral-health diagnosis qualification | Use project-owned ICD-10-CM `F*` prefix as a broad behavioral-health proxy in `ref.measure_value_set` | Portfolio-safe project rule using typed `core.condition` coding-system evidence | Broad proxy; not a proprietary NCQA value set and not equivalent to official FUH diagnosis logic | `T-FUH-029`, `T-FUH-034`, `T-FUH-053`, `T-FUH-097` | Locked |
+| A-007 | Intentional self-harm | No separate intentional-self-harm value set is implemented in v0.1 | Current source/fixture scope | Official/public FUH descriptions may include self-harm pathways; this portfolio version does not claim to reproduce them | documented limitation in methodology/test catalog | Deferred |
+| A-008 | Qualifying follow-up services | Accept source encounter types `ambulatory` and `outpatient` when accompanied by qualifying typed behavioral-health diagnosis evidence | Project-owned transparent service rule | May differ from licensed specification and does not use proprietary value sets | `T-FUH-048`, `T-FUH-052`, `T-FUH-053`, `T-FUH-097` | Locked |
+| A-009 | Continuous enrollment and benefits | Require one `core.enrollment_span` for the index payer covering discharge through day 30, with `medical_benefit_flag = 1` and `behavioral_health_benefit_flag = 1`; no allowable gap within the required span | Public FUH guidance + project modeling | Synthetic coverage simplifies real benefit administration | `T-FUH-038`, `T-FUH-039`, `T-FUH-061`, `T-FUH-100` | Locked |
+| A-010 | Readmissions / transfers | **Not implemented in v0.1.** The project does not infer principal diagnosis from claim position 1 or encounter reason fields, so it does not apply a principal-diagnosis-dependent readmission/transfer exclusion | Phase 2 source-semantics findings | This is a material limitation versus a production/official FUH implementation | documented in methodology/test catalog | Deferred |
+| A-011 | As-of date | Store fixed analysis date `2026-10-18` in `ref.measure_definition` rather than relying on system date | Reproducibility | Historical portfolio timing differs from production operations | `T-FUH-026`, `T-FUH-096` | Locked |
+| A-012 | Provider attribution | Preserve available provider/organization lineage but do not create a separate quality-attribution rule in Phase 3 | Source availability | Not a production attribution model | relationship QA in Phase 2; lineage in measure outputs | Deferred |
+| A-013 | Excel reconciliation | Reconcile authoritative event-level SQL output rather than every raw transaction | Practical validation design | Does not independently rebuild the entire warehouse | future Excel phase | Locked |
+| A-014 | Power BI logic | Power BI will consume SQL-defined measure results; eligibility remains in SQL | Auditability | Display-oriented DAX may still be used | future Power BI phase | Locked |
+| A-015 | Same-day follow-up | A qualifying follow-up on the discharge date remains visible for audit but does not satisfy either numerator; day 1 is the day after discharge | Public FUH guidance + project rule | Portfolio approximation still depends on project-owned service definitions | `T-FUH-058`, `T-FUH-101` | Locked |
+| A-016 | Sparse FUH episodes in generated data | Use a separate deterministic 2025 fixture package with 40 eligible psychiatric discharges and expected 18/40 7-day, 32/40 30-day results | Observed Synthea profiling + test-data design | Fixtures validate logic and are not prevalence-representative | `T-FUH-040`–`T-FUH-044`, `T-FUH-067`–`T-FUH-074`, `T-FUH-103` | Locked |
+| A-017 | Measurement-year discharge cutoff | Candidate discharges must occur January 1 through December 1 of measurement year 2025 | Public FUH guidance + project rule | No v0.1 readmission sequence logic moves a last discharge across the cutoff | `T-FUH-037` | Locked |
+| A-018 | Benefit coverage derivation | Medicaid enrollment is treated as having medical and behavioral-health benefit flags = 1/1; other primary payer spans are 0/0 | Source-data limitation + project modeling decision | Real payer benefit carve-outs may differ | `T-CORE-006`, `T-FUH-038` | Locked |
+| A-019 | Claim-transaction service end dates | Normalize `TODATE` to `NULL` when it is `1970-01-01` or precedes `FROMDATE`; unparseable dates fail load | Observed pinned-source behavior | Null means source end date was not analytically trustworthy | `T-CORE-021` | Locked |
+| A-020 | Claim-transaction place value | Preserve raw `PLACEOFSERVICE`; populate organization FK only when the value resolves to a known organization | Observed mixed source semantics | One combined field cannot honestly be modeled as only POS code or only organization ID | `T-CORE-021`, `T-CORE-022` | Locked |
+| A-021 | Claim-transaction patient-insurance value | Preserve `PATIENTINSURANCEID` as opaque `source_patient_insurance_id`; do not enforce a payer/enrollment FK | Synthea v4.0.0 source behavior + controlled fixture design | Synthea writes a plan-record/member-like source identifier, but the authoritative combined source does not support a universal FK and fixtures use the field differently | `T-CORE-020` | Locked |
+| A-022 | Claim diagnosis semantics | Preserve positions 1–8 without assigning a coding system or treating position 1 as principal diagnosis | Raw claim structure + transaction diagnosis-reference behavior | Claim diagnosis rows cannot support typed principal-diagnosis logic without additional source semantics | `T-CORE-018`, `T-CORE-021` | Locked |
+| A-023 | Claim-line representation | Model `claims_transactions.csv` as `core.claim_transaction` at one row per source transaction; keep `CHARGEID` opaque | Source grain + exporter behavior | No separate stable claim-line entity exists in current source | `T-CORE-019`, `T-CORE-020` | Locked |
+| A-024 | Deterministic numerator selection | When multiple follow-up services qualify, select the earliest event by date/time and encounter ID for each window | Auditability / duplicate-credit prevention | Ties are resolved deterministically rather than producing multiple numerator credits | `T-FUH-064`, `T-FUH-065`, `T-FUH-109` | Locked |
+| A-025 | Reporting interpretation | Current controlled fixtures may be summarized by payer/month/demographic/timing dimensions, but fixture subgroup differences are not interpreted as real-world disparities | Fixture design | One payer, one county, narrow adult ages, and controlled timing limit substantive subgroup interpretation | `T-FUH-087`–`T-FUH-094`, `T-FUH-105`–`T-FUH-107` | Locked |
 
-## Source verification for locked FUH rules
+## FUH-style implementation notes
 
-The four most consequential locked boundary rules are tied to named public sources in the Basis column.
+The implemented v0.1 logic is intentionally narrower than an official specification. In particular:
 
-- **A-009:** The Johns Hopkins 2026 toolkit states continuous enrollment is from the discharge date through 30 days after discharge, with no allowable gap, and requires medical and mental-health benefits.
-- **A-010:** Verified directly in the Johns Hopkins 2026 toolkit, printed page 195 under **Denominator Exclusions**: the nonacute readmission/direct-transfer exclusion contains an explicit psychiatric-residential-treatment exception. Anthem's 2025 HEDIS coding booklet independently states the same exception. The NCQA MY2025 public-comment summary says residential treatment was added to the numerator and removed from denominator-removal criteria; its later detailed nonacute paragraph does not show the exception, so the project does not cite that paragraph as proof of the exception.
-- **A-015:** The Johns Hopkins 2026 toolkit explicitly states that follow-up visits on the discharge date do not count.
-- **A-017:** The Johns Hopkins 2026 toolkit limits denominator discharges to January 1 through December 1. The NCQA MY2025 public-comment draft explicitly states that if the last discharge in an acute readmission/direct-transfer sequence occurs after December 1, the affected discharges are excluded.
+- `core.condition` is used for diagnosis qualification because it retains a trustworthy coding-system field;
+- `core.claim_diagnosis` position 1 is not treated as principal diagnosis;
+- encounter reason fields are not treated as principal diagnosis;
+- no readmission/transfer exclusion is manufactured from unsupported semantics;
+- `core.claim_transaction` is not required by Phase 3 measure logic;
+- the fixed fixture benchmark is a test oracle, not an epidemiological finding.
 
-The NCQA document is a public-comment draft and is labeled obsolete after March 13, 2024. It is used here only as a public source for the detailed rule language that is not reproduced in the general NCQA public measure page. The project does not represent this draft as the licensed final specification.
-
-## How to use this file
+## Change discipline
 
 When a rule changes:
 
-1. update the assumption here;
-2. update the linked test case in `sql/05_tests/TEST_CASES.md`;
-3. update the SQL;
-4. run the affected SQL tests;
-5. refresh the Excel reconciliation;
-6. refresh Power BI if the change affects reporting;
-7. record the change in Git history.
-
-## Interview use
-
-This file is intentionally part of the portfolio. It should make it possible to answer questions such as:
-
-- Why did you define the denominator this way?
-- Which parts of the logic are approximations?
-- What would have to change if licensed specifications were available?
-- How did you make the measure auditable?
-- How did you handle readmissions, enrollment continuity and boundary dates?
-- How did you prevent the dashboard from becoming the only place business logic exists?
-
-A documented assumption is preferable to an invisible guess.
+1. update this register;
+2. update `sql/05_tests/TEST_CASES.md`;
+3. update the SQL/reference configuration;
+4. run the affected executable tests;
+5. refresh downstream Excel/Power BI work if applicable;
+6. record the change in Git history.

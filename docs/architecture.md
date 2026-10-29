@@ -2,9 +2,9 @@
 
 ## Design principle
 
-The Quality Performance milestone uses the smallest architecture that still demonstrates professional separation of concerns, reproducibility, and a realistic payer-analytics workflow.
+Use the smallest architecture that demonstrates professional separation of concerns, relational modeling, reproducibility, traceable business rules, and payer quality analytics.
 
-The database contains four active schemas:
+Active database schemas:
 
 ```text
 raw
@@ -13,196 +13,169 @@ ref
 measure
 ```
 
-The expanded payer platform later introduces additional schemas such as `stg`, `mart`, and `audit` when their complexity is justified.
-
 ## End-to-end flow
 
 ```text
-Synthetic source data + deterministic FUH fixtures
-                    |
-                    v
-          Python generation/import
-                    |
-                    v
-                raw schema
-                    |
-                    v
-     SQL typing + relational modeling
-                    |
-                    v
-             core + ref schemas
-                    |
-                    v
-        FUH-style measure logic
-                    |
-                    v
-       measure.fuh_episode_detail
-                    |
-          +---------+----------+
-          |                    |
-          v                    v
- Quality analysis views    Open-gap output
- trends / populations      actionable misses
-          |                    |
-          +---------+----------+
-                    |
-          +---------+----------+
-          |                    |
-          v                    v
- Excel reconciliation   Power BI Quality report
+Synthetic Synthea source + deterministic FUH fixtures
+                         |
+                         v
+                    raw schema
+                         |
+                         v
+              typed relational core
+                         |
+              +----------+----------+
+              |                     |
+              v                     v
+ core clinical/claims data      ref measure rules
+              |                     |
+              +----------+----------+
+                         v
+          measure.fuh_index_event_detail
+                         |
+                         v
+        measure.fuh_followup_event_detail
+                         |
+                         v
+             measure.fuh_measure_result
+                 /        |         \
+                v         v          v
+          aggregate   reporting   open gaps
+           summary      views
+                \         |          /
+                 +--------+---------+
+                          |
+                   Excel / Power BI
 ```
-
-A focused medication/pharmacy source is added during the Quality analysis phase and linked to the same member-centered core model. Physical-health context is derived from the condition data already carried through the relational layer.
 
 ## Schema responsibilities
 
 ### `raw`
 
-Purpose: preserve source-shaped records with minimal modification.
-
-Typical/current source tables include:
-
-- `raw.patient`
-- `raw.encounter`
-- `raw.condition`
-- `raw.claim`
-- `raw.claim_transaction`
-- `raw.provider`
-- `raw.organization`
-- `raw.payer`
-- `raw.payer_transition`
-
-Quality-milestone extension:
-
-- a Synthea medication source promoted into `raw` when the pharmacy analysis is implemented.
-
-Rules:
-
-- retain source identifiers;
-- preserve source dates and categories;
-- avoid measure-specific logic;
-- add load metadata where useful;
-- make reruns repeatable.
+Preserves source-shaped records with minimal transformation, source identifiers, fixture indicators, and load lineage.
 
 ### `core`
 
-Purpose: provide cleaned, payer-oriented relational entities with explicit grain and stable relationships.
+Provides typed relational entities at trustworthy source-supported grains:
 
-Quality-milestone Phase 2 entities are:
+- `core.member`;
+- `core.payer`;
+- `core.enrollment_span`;
+- `core.organization`;
+- `core.provider`;
+- `core.encounter`;
+- `core.condition`;
+- `core.claim`;
+- `core.claim_diagnosis`;
+- `core.claim_transaction`.
 
-- `core.member`
-- `core.payer`
-- `core.enrollment_span`
-- `core.organization`
-- `core.provider`
-- `core.encounter`
-- `core.condition`
-- `core.claim`
-- `core.claim_diagnosis`
-- `core.claim_transaction`
+Important semantic protections:
 
-The source is transaction/event-grained, so Phase 2 deliberately does not fabricate a separate claim-line table. Provider location is represented through the provider-to-organization relationship rather than a duplicate provider-location entity. Medication/pharmacy representation remains a Phase 4 extension.
-
-Rules:
-
-- stable keys;
-- explicit grain;
-- consistent data types;
-- normalized dates;
-- referential-integrity checks;
-- source-to-core reconciliation;
-- no FUH numerator/denominator flags.
-
-Phase 2 also preserves source semantics when the landing data cannot support a clean normalized relationship. In particular, claim-transaction `PLACEOFSERVICE` is preserved as a raw source value and only resolves to an organization when the value is actually an organization identifier; `PATIENTINSURANCEID` is retained as source lineage rather than forced into a payer FK; and invalid/sentinel transaction end dates normalize to `NULL` while remaining traceable in raw.
+- claim diagnosis position 1 is not treated as principal diagnosis;
+- claim diagnosis coding system is not invented;
+- `PATIENTINSURANCEID` is retained as opaque source lineage rather than forced into a payer/enrollment FK;
+- transaction place values are normalized only when a real organization relationship exists.
 
 ### `ref`
 
-Purpose: centralize reusable definitions and lookup data.
+Stores reusable measure metadata and project-owned rule/value-set configuration:
 
-Initial tables may include:
+- `ref.measure_definition`;
+- `ref.measure_value_set`.
 
-- `ref.date`
-- `ref.county`
-- `ref.diagnosis_group`
-- `ref.service_type`
-- `ref.measure_definition`
-- `ref.measure_value_set`
-
-The project should prefer reference-driven logic over long hardcoded code lists inside measure queries.
+The implemented FUH-style configuration is explicitly HEDIS-oriented but not official HEDIS.
 
 ### `measure`
 
-Purpose: hold measure-specific and report-ready quality analytical results.
+Owns measure business logic and report-ready analytical outputs.
 
-Core FUH objects:
+#### `measure.fuh_index_event_detail`
 
-- `measure.fuh_episode_detail`
-- `measure.fuh_summary`
-- `measure.fuh_open_gap`
+Grain: one row per candidate inpatient behavioral-health index encounter/discharge.
 
-Additional Quality analysis objects may expose:
+Responsibilities:
 
-- monthly/quarterly trends;
-- population stratifications;
-- physical-health/comorbidity summaries;
-- focused pharmacy context.
+- candidate identification;
+- typed behavioral-health diagnosis evidence;
+- age logic;
+- measurement-window logic;
+- payer-specific enrollment/benefit eligibility;
+- ineligibility reason;
+- source and fixture lineage.
 
-These may be tables or views depending on the need for persistence, auditability, and refresh behavior.
+#### `measure.fuh_followup_event_detail`
+
+Grain: one row per eligible index event / qualifying follow-up encounter pair within day 0 through day 30.
+
+Responsibilities:
+
+- qualifying follow-up source/type/diagnosis evidence;
+- days from index;
+- same-day flag;
+- 7-day/30-day qualification flags;
+- source and fixture lineage.
+
+#### `measure.fuh_measure_result`
+
+Grain: one row per final denominator event.
+
+Responsibilities:
+
+- denominator flag;
+- deterministic earliest 7-day follow-up;
+- deterministic earliest 30-day follow-up;
+- numerator flags;
+- payer/demographic/source lineage.
+
+#### `measure.fuh_measure_summary`
+
+Grain: one row per population scope (`ALL`, `FIXTURE`, `NON_FIXTURE`).
+
+Responsibilities: denominator/numerators and safe decimal rates.
+
+#### Reporting views
+
+- `measure.fuh_report_payer_monthly`;
+- `measure.fuh_report_demographic`;
+- `measure.fuh_report_followup_timing`;
+- `measure.fuh_open_gap_detail`.
+
+These expose report-ready counts, rates, timing distributions, subgroup structures, and quality-gap detail while keeping authoritative numerator/denominator logic upstream.
 
 ## Business-logic ownership
 
 | Logic | Owner |
 |---|---|
-| source ingestion | Python |
-| source cleanup and typing | SQL |
-| member/enrollment/claim/clinical modeling | SQL |
-| FUH business rules | SQL |
-| quality trend/population/gap analysis | SQL |
-| physical-health/pharmacy integration | SQL |
+| source generation/import | Python |
+| source cleanup/typing | SQL raw/core |
+| relational healthcare model | SQL core |
+| measure configuration | SQL ref |
+| FUH-style eligibility/numerator logic | SQL measure |
+| analytical reporting | SQL measure |
 | independent reconciliation | Excel |
-| visual aggregation and interaction | Power BI |
-| documentation of assumptions/lineage | Markdown |
+| visualization/interactions | Power BI |
+| assumptions/lineage/limitations | Markdown + SQL lineage fields |
 
-Power BI may contain display-oriented DAX measures, but it should not recreate FUH eligibility logic.
+## Reproducibility and lineage
 
-## Why an episode table matters
-
-The primary analytical output is not a single percentage.
-
-`measure.fuh_episode_detail` is an **audit table at candidate-discharge grain**. It retains eligible, excluded, and otherwise non-denominator candidates so a reviewer can trace exactly why each episode was retained or dropped.
-
-The FUH denominator is derived from rows where `denominator_flag = 1`; numerator flags are then evaluated only for those denominator episodes.
-
-The **single canonical column list** for this table lives in [`data_dictionary.md`](data_dictionary.md#measurefuh_episode_detail). Do not maintain a second field definition here.
-
-This table is the bridge between computation, validation, quality-gap analysis, and operational reporting.
-
-## Reproducibility and report lineage
-
-Report-ready outputs should be traceable back through:
+A report result can be traced through:
 
 ```text
-report visual / workbook result
-        -> measure/reporting object
-        -> core relational entity
-        -> raw source table
-        -> documented synthetic source or fixture
+report output
+  -> measure reporting view
+  -> measure.fuh_measure_result
+  -> index/follow-up detail
+  -> core entity
+  -> raw source
+  -> synthetic Synthea row or controlled fixture
 ```
 
-Assumptions, configured analysis dates, fixture flags, and pipeline/load identifiers should be retained wherever they materially affect reproducibility.
+The measure configuration retains a fixed analysis date and methodology version. Measure views retain source IDs, source files, pipeline run IDs, and fixture flags where materially useful.
 
-## Development scale
+## Performance design
 
-Build and debug against approximately **5,000 members**.
+The Phase 3 logic uses `core.encounter`, `core.condition`, `core.enrollment_span`, and optional `core.claim` lineage. It does not scan `core.claim_transaction` because transaction-level detail is unnecessary for the implemented FUH-style qualification rule.
 
-Do not scale to 50,000 until:
+## Known architectural limits
 
-1. the load succeeds repeatably;
-2. row counts reconcile;
-3. core relationships are tested;
-4. FUH test cases pass;
-5. Quality analysis outputs are reproducible;
-6. Excel reconciliation is stable;
-7. the Power BI report refreshes correctly.
-
-At that point, scaling becomes a performance exercise rather than a logic-debugging exercise, and development continues into the expanded payer platform.
+The current source cannot support a trustworthy production-grade principal-diagnosis/readmission implementation. The project therefore does not infer one from claim position 1 or encounter reason fields. Pharmacy, physical-health integration, disability/cultural-factor analysis, and official HEDIS/regulatory functionality remain outside the implemented Phase 3 scope.
