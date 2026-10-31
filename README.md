@@ -1,8 +1,8 @@
 # Healthcare Payer Analytics Pipeline
 
-A portfolio project that uses synthetic healthcare data to build a payer analytics workflow in SQL Server.
+A portfolio project that uses synthetic healthcare data to build a payer analytics workflow in SQL Server and Excel.
 
-The project loads raw healthcare data, cleans it into a relational model, calculates a behavioral-health quality measure, and produces reporting outputs that could be used for quality analysis. The database is also intentionally kept as a large practice sandbox for SQL joins, Excel analysis, reconciliation, and reporting.
+The project loads raw healthcare data, cleans it into a relational model, calculates a behavioral-health quality measure, exposes compact analysis-ready SQL views, and analyzes those outputs in a refreshable Excel workbook. The SQL Server database is also intentionally retained as a large practice sandbox for joins, aggregation, reconciliation, and reporting.
 
 ## What the project does
 
@@ -14,9 +14,11 @@ The current version includes:
 - member eligibility and enrollment checks;
 - 7-day and 30-day follow-up calculations;
 - payer, monthly, demographic, follow-up timing, and open-gap reporting;
-- automated SQL tests for data quality and measure logic.
+- a compact Excel-facing SQL analysis layer with tested joins and aggregation;
+- a refreshable Excel workbook using Power Query, Excel Tables, VLOOKUP/XLOOKUP, SUMIFS/COUNTIFS, IF/IFERROR, PivotTables, charts, and SQL-to-Excel reconciliation;
+- automated SQL tests for data quality, measure logic, and Excel-facing output integrity.
 
-Phase 4 will add an Excel analytics and reconciliation sandbox. Power BI reporting is planned for Phase 5.
+Power BI reporting remains planned for Phase 5.
 
 ## FUH-style results
 
@@ -55,23 +57,34 @@ The current SQL Server database contains:
 | Claim diagnoses | 825,929 |
 | Claim transactions | 5,220,492 |
 
+Large detail tables remain in SQL Server. The committed Excel workbook uses compact analysis-ready views rather than duplicating the warehouse in `.xlsx` form.
+
 ## Tools
 
 - Python
 - Microsoft SQL Server Developer Edition
 - SQL Server Management Studio
 - Git / GitHub
-- Excel / Power Query — planned for Phase 4
+- Microsoft Excel
+- Power Query
 - Power BI Desktop — planned for Phase 5
 
 ## Database structure
 
-The project uses four main SQL schemas:
+The project uses five active SQL schemas:
 
 - `raw` — source data loaded with minimal changes;
 - `core` — cleaned and typed relational tables;
 - `ref` — measure definitions and reference values;
-- `measure` — quality-measure logic and reporting outputs.
+- `measure` — quality-measure logic and reporting outputs;
+- `analysis` — compact Excel-facing analytical views.
+
+The Phase 4 analysis layer exposes:
+
+- `analysis.excel_encounter_activity` — payer × month × encounter-type aggregation;
+- `analysis.excel_member_data` — one non-identifying analytical row per member;
+- `analysis.excel_fuh_data` — Excel-friendly FUH event detail using authoritative Phase 3 flags;
+- `analysis.excel_payer_lookup` — small payer reference table for lookup practice.
 
 The FUH-style measure is built in several steps:
 
@@ -90,26 +103,45 @@ final event results
       +------> summary results
       |
       +------> reporting views
+      |
+      +------> analysis views -> Excel workbook
 ```
-
-Breaking the measure into separate steps makes it easier to check how a member entered the denominator, whether they were eligible, and which follow-up visit counted.
 
 More detail is available in:
 
 - [`sql/04_measure/fuh/README.md`](sql/04_measure/fuh/README.md)
+- [`sql/06_analysis/README.md`](sql/06_analysis/README.md)
 - [`docs/fuh_methodology.md`](docs/fuh_methodology.md)
+- [`docs/phase4_excel_plan.md`](docs/phase4_excel_plan.md)
 - [`docs/assumptions_register.md`](docs/assumptions_register.md)
 
-## Reporting outputs
+## Excel analysis
 
-The current measure layer includes:
+The committed workbook is:
 
-- performance by payer and month;
-- performance by age group and sex;
-- follow-up timing distributions;
-- member-level follow-up gaps.
+`excel/healthcare_payer_analysis.xlsx`
 
-These outputs are meant to support quality analysis, such as finding groups with lower follow-up rates or members who missed the 7-day or 30-day target.
+It contains compact SQL-backed source tables plus separate formula-practice, PivotTable, chart, and reconciliation sheets. Implemented Excel evidence includes:
+
+- VLOOKUP and XLOOKUP against a real payer lookup table;
+- IFERROR for lookup handling;
+- SUMIFS for payer-level and payer/year encounter totals;
+- COUNTIFS for FUH numerator/gap checks;
+- IF-based PASS/FAIL controls;
+- three manually built PivotTables;
+- three charts, including a 2025 monthly encounter trend and FUH timing distribution;
+- SQL-to-Excel reconciliation for members, encounters, claims, and FUH results.
+
+Final reconciliation differences are zero for all six controls:
+
+- members = 5,671;
+- encounters = 313,094;
+- claims = 573,681;
+- FUH denominator = 40;
+- FUH 7-day numerator = 18;
+- FUH 30-day numerator = 32.
+
+The workbook refresh workflow was re-tested after document metadata removal. The committed workbook contains no unnecessary personal-looking synthetic fields.
 
 ## Testing
 
@@ -123,23 +155,23 @@ The project includes executable SQL tests for:
 - numerator and denominator reconciliation;
 - fixture results;
 - reporting totals;
-- source lineage.
+- source lineage;
+- Excel-facing analysis-view grain and reconciliation;
+- prevention of unintended row multiplication;
+- public-workbook field restrictions.
 
-The final Phase 3 closeout test passed `T-FUH-095` through `T-FUH-110`.
+Phase 3 closeout passed `T-FUH-095` through `T-FUH-110`.
 
-The controlled fixture results also matched the expected:
-
-- 40 denominator events;
-- 18 seven-day follow-ups;
-- 32 thirty-day follow-ups;
-- 45% seven-day rate;
-- 80% thirty-day rate.
+Phase 4 SQL analysis validation passed `T-XL-001` through `T-XL-012`.
 
 ## How to run
 
 1. Follow [`sql/02_core/README.md`](sql/02_core/README.md) to build the core SQL tables after raw data has been loaded.
 2. Follow [`sql/04_measure/fuh/README.md`](sql/04_measure/fuh/README.md) to build the reference and FUH-style measure layer.
-3. Run `sql/05_tests/004_validate_fuh_index.sql` through `sql/05_tests/007_validate_phase3_closeout.sql`.
+3. Run `sql/06_analysis/001_create_excel_analysis_views.sql`.
+4. Run `sql/05_tests/008_validate_phase4_excel_analysis.sql`.
+5. Open `excel/healthcare_payer_analysis.xlsx` and use **Data -> Refresh All**.
+6. Confirm the `SQL_Reconciliation` sheet remains all PASS with zero differences.
 
 Local setup notes are available in [`docs/setup.md`](docs/setup.md).
 
@@ -149,11 +181,11 @@ Local setup notes are available in [`docs/setup.md`](docs/setup.md).
 - **Phase 1 — Raw ingestion:** complete
 - **Phase 2 — Core relational model:** complete and validated
 - **Phase 3 — Quality measure and reporting:** complete and validated
-- **Phase 4 — Excel analytics, reconciliation, and SQL practice sandbox:** next
-- **Phase 5 — Power BI reporting:** planned
+- **Phase 4 — Excel analytics, reconciliation, and SQL practice sandbox:** complete and validated
+- **Phase 5 — Power BI reporting:** next
 - **Later — Expanded payer analytics platform:** planned
 
-See [`docs/phase4_excel_plan.md`](docs/phase4_excel_plan.md) for the Phase 4 scope and definition of done.
+See [`docs/phase4_excel_plan.md`](docs/phase4_excel_plan.md) for the implemented Phase 4 design and closeout evidence.
 
 ## Current limitations
 
@@ -166,7 +198,8 @@ The current version does not include:
 - pharmacy integration;
 - physical-health integration;
 - disability or cultural-factor analysis;
-- regulatory submission workflows.
+- regulatory submission workflows;
+- completed Power BI reporting.
 
 Those areas are not claimed unless they are actually implemented.
 

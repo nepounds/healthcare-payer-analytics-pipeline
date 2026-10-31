@@ -23,3 +23,11 @@ See [`TEST_CASES.md`](TEST_CASES.md) for the human-readable catalog.
 ```
 
 The Phase 3 suite covers generic invariants plus deterministic fixture acceptance. Fixture benchmarks are not the only QA: grain uniqueness, required fields, relationships, date logic, same-day handling, deterministic first follow-up, aggregate reconciliation, reporting reconciliation, lineage, and scope/rate validity are tested independently.
+
+## Implemented Phase 4 validation
+
+```text
+008_validate_phase4_excel_analysis.sql  # T-XL-001 through T-XL-012
+```
+
+The Phase 4 suite validates the Excel-facing analysis schema, documented encounter aggregation grain, encounter/claim reconciliation, prevention of one-to-many row multiplication, one-row-per-member and one-row-per-FUH-event integrity, FUH classifications/fixture benchmark, payer lookup integrity, and exclusion of common personal-looking fields from public workbook views.

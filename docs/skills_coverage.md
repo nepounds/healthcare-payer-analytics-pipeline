@@ -6,86 +6,69 @@ This file maps portfolio claims to concrete repository evidence. A keyword is no
 
 | Capability | Concrete repository evidence | Coverage |
 |---|---|---|
-| Microsoft SQL Server | all DDL/views/tests under `sql/`; database target `HealthcarePayerAnalytics` | Implemented |
+| Microsoft SQL Server | DDL/views/tests under `sql/`; database target `HealthcarePayerAnalytics` | Implemented |
 | large datasets | typed core model includes 5.2M+ claim transactions plus hundreds of thousands of claims/encounters/conditions | Implemented |
 | relational databases | PK/FK constraints and typed relationships across `core.*`; `T-CORE-001`–`T-CORE-022` | Implemented |
-| healthcare payer analytics | `core.payer`, `core.enrollment_span`, payer lineage on measure results, payer/month reporting | Implemented |
+| healthcare payer analytics | `core.payer`, `core.enrollment_span`, payer lineage on measure and analysis outputs | Implemented |
 | behavioral health | project-owned BH diagnosis rules, psychiatric fixtures, FUH-style measure pipeline | Implemented |
 | performance measures | `measure.fuh_index_event_detail`, `fuh_followup_event_detail`, `fuh_measure_result`, `fuh_measure_summary` | Implemented |
-| HEDIS-oriented / HEDIS-style analysis | measure configuration explicitly marks the project HEDIS-oriented and not official; `docs/fuh_methodology.md` | Implemented honestly |
-| quality assurance | executable structural, relationship, reconciliation, fixture, and closeout tests using `THROW` | Implemented |
+| HEDIS-oriented / HEDIS-style analysis | measure configuration explicitly marks project HEDIS-oriented and not official; `docs/fuh_methodology.md` | Implemented honestly |
+| quality assurance | executable structural, relationship, reconciliation, fixture, closeout, and Excel-analysis tests using `THROW` | Implemented |
 | quality improvement analytics | open-gap and follow-up timing outputs identify missed/tardy follow-up patterns | Implemented |
-| analytical reporting | payer/month, demographic, timing, and open-gap outputs | Implemented |
+| analytical reporting | payer/month, demographic, timing, open-gap, and Excel analytical outputs | Implemented |
 | statistical analysis | counts, percentages/rates, timing distributions, average follow-up days | Implemented descriptive analytics |
-| pattern identification | timing bands and open-gap classifications; payer/month and demographic structures | Implemented |
-| trend analysis | month-level performance/volume reporting structure | Implemented; fixture interpretation limited |
+| pattern identification | timing bands, gap classifications, payer/month structures, encounter mix | Implemented |
+| trend analysis | month-level measure/report structures plus 2025 monthly encounter-volume Excel chart | Implemented |
 | information synthesis | event-level result combines member, encounter, enrollment, diagnosis, payer, and follow-up evidence | Implemented |
 | result interpretation | methodology/reporting docs state what current fixture outputs do and do not support | Implemented |
-| reproducible reporting | fixed measure config, SQL execution order, deterministic fixtures, report-ready views | Implemented |
+| reproducible reporting | fixed measure config, deterministic fixtures, analysis views, Power Query refresh workflow | Implemented |
 | data-source references / lineage | source IDs/files/pipeline run IDs and fixture flags retained through measure layers | Implemented |
 | enrollment / eligibility analysis | payer-specific 30-day continuous coverage and medical/BH benefit logic | Implemented |
 | numerator / denominator methodology | explicit eligibility, deterministic first follow-up, 7/30-day flags and aggregate rates | Implemented |
-| automated validation | `004_validate_fuh_index.sql` through `007_validate_phase3_closeout.sql` | Implemented |
+| automated validation | `004_validate_fuh_index.sql` through `008_validate_phase4_excel_analysis.sql` | Implemented |
 
 ## SQL skills demonstrated naturally
 
 | Skill | Evidence |
 |---|---|
-| joins | core relationships and measure lineage |
-| `LEFT JOIN` / missing-row logic | summary scopes, QA reconciliation, gap testing |
+| joins | core relationships, measure lineage, and `sql/06_analysis/001_create_excel_analysis_views.sql` |
+| `INNER JOIN` | FUH Excel view to validated payer reference |
+| `LEFT JOIN` / missing-row logic | encounter activity preserves unattributed encounters; QA/gap logic |
+| one-to-many aggregation | claims are aggregated to encounter grain before encounter summary join |
+| distinct counting | grouped distinct member counts in `analysis.excel_encounter_activity` |
 | `CROSS APPLY` / `OUTER APPLY` | typed diagnosis selection, enrollment selection, deterministic first follow-up |
-| `CASE` | eligibility, numerator flags, timing bands, gap status |
+| `CASE` | eligibility, numerator flags, timing bands, gap status, age bands |
 | `DATEADD` / `DATEDIFF` | follow-up windows, age, days-to-follow-up |
-| aggregation | measure summary and analytical reports |
+| aggregation | measure summary, reporting views, and Excel-facing encounter activity |
 | window functions | report denominator percentages |
 | safe arithmetic | zero-denominator rate handling |
 | constraints / indexes | Phase 2 core relational model |
-| automated QA | `THROW`-based test suites |
+| automated QA | `THROW`-based test suites through `T-XL-012` |
 
-The existing database is also intentionally retained as a large SQL practice sandbox. Phase 4 will add additional analysis/export queries specifically so the project can be reused for join, grouping, date, reconciliation, and reporting practice rather than treated as a finished static artifact.
+The database remains a large SQL practice sandbox for joins, CTEs, grouping, date logic, window functions, subqueries, optimization, and reconciliation exercises.
 
-## Planned Phase 4 — Excel skills
+## Implemented Phase 4 — Excel skills
 
-The following should remain **planned**, not claimed as implemented, until the Phase 4 workbook exists and is validated.
-
-| Excel capability | Planned Phase 4 evidence | Current status |
+| Excel capability | Concrete evidence | Status |
 |---|---|---|
-| VLOOKUP | lookup/reference exercise using project data | Planned |
-| XLOOKUP | modern lookup exercise using the same project data | Planned |
-| SUMIFS / COUNTIFS | formula-based summaries and checks | Planned |
-| PivotTables | at least three useful analytical pivots | Planned |
-| charts / graphs | at least three charts based on project analysis | Planned |
-| Excel Tables / structured references | workbook data and formula tabs | Planned |
-| reconciliation | SQL-vs-Excel control sheet with zero-difference checks | Planned |
-| Power Query | optional/expected refresh/import path where practical | Planned |
+| Excel Tables / structured references | `tblEncounter`, `tblMember`, `tblFUH`, `tblPayer` in `excel/healthcare_payer_analysis.xlsx` | Implemented |
+| Power Query | four refreshable SQL-backed source tables | Implemented |
+| VLOOKUP | `Formula_Practice`: payer ID -> payer name using `tblPayer` | Implemented |
+| XLOOKUP | `Formula_Practice`: payer ID -> payer type using named table columns | Implemented |
+| IFERROR | `Formula_Practice`: VLOOKUP wrapped with lookup-error handling | Implemented |
+| SUMIFS | `Formula_Practice`: total encounters by payer and 2025 encounters by payer | Implemented |
+| COUNTIFS | `Formula_Practice`: FUH 7-day, 30-day, missed-30-day, and missed-7/met-30 checks | Implemented |
+| IF | `Formula_Practice` and `SQL_Reconciliation`: PASS/FAIL controls | Implemented |
+| PivotTables | three manually built analytical PivotTables on `Pivot_Analysis` | Implemented |
+| charts / graphs | three charts on `Charts`: monthly trend, encounter/payer mix, FUH timing | Implemented |
+| reconciliation | six SQL-vs-Excel controls on `SQL_Reconciliation`, all zero difference / PASS | Implemented |
+| analytical interpretation | chart/pivot choices documented in Phase 4 docs and workbook README | Implemented |
+| reproducibility | `excel/README.md`, workbook README sheet, Power Query refresh path | Implemented |
 
-After Phase 4 passes, these claims may be changed from planned to implemented with direct workbook evidence.
+Resume-safe Excel wording:
+
+**Excel: PivotTables, VLOOKUP/XLOOKUP, SUMIFS/COUNTIFS, IF/IFERROR, charts, Power Query, data reconciliation**
 
 ## Planned Phase 5 — Power BI
 
-| Capability | Planned evidence | Current status |
-|---|---|---|
-| Power BI Desktop | quality-performance report consuming SQL outputs | Planned |
-| data modeling | report relationships/date structure as needed | Planned |
-| DAX | presentation-oriented measures only where useful | Planned |
-| interactive reporting | filters, trends, timing/gap views, KPI cards | Planned |
-
-## Not claimed by the current implementation
-
-These areas are intentionally **not** represented as completed capability:
-
-- official/certified NCQA HEDIS implementation;
-- proprietary value sets;
-- regulatory submission capability;
-- trustworthy principal-diagnosis/readmission rules not supported by the source;
-- pharmacy integration;
-- physical-health integration;
-- disability analysis;
-- cultural-factor analysis;
-- production PHI handling.
-
-They belong in future work only if suitable data/specifications are added.
-
-## Principle
-
-Do not force a skill or keyword into the project if doing so makes the design worse. Portfolio-ready claims require implementation, validation evidence, and documentation sufficient to explain the work in an interview.
+Power BI remains **planned**, not implemented. No Power BI resume claim should be based on this repository until Phase 5 artifacts exist and are validated.

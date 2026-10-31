@@ -126,3 +126,24 @@ denominator = 40
 ```
 
 These expected values may be hard-coded in fixture acceptance tests because the fixture package exists specifically to provide a deterministic acceptance target. The measure calculations themselves do not hard-code them.
+
+## Executable Phase 4 tests
+
+### `008_validate_phase4_excel_analysis.sql` — T-XL-001 through T-XL-012
+
+Validates:
+
+- `analysis` schema and all four Excel-facing views exist;
+- encounter activity is unique at payer × month × encounter-type grain;
+- summed `encounter_count` reconciles to `core.encounter`;
+- summed `claim_count` reconciles to `core.claim` without one-to-many row multiplication;
+- encounter summary values/month normalization are valid;
+- member export is exactly one row per core member;
+- member analytical fields use the fixed configured analysis date;
+- FUH Excel detail is exactly one row per authoritative measure result;
+- FUH flags, timing bands, and gap classifications are internally consistent;
+- controlled FUH fixture remains 40 / 18 / 32;
+- payer lookup is one row per core payer;
+- common personal-looking fields are not exposed by the Excel-facing views.
+
+Phase 4 validation passed `T-XL-001` through `T-XL-012`.

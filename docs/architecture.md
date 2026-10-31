@@ -2,7 +2,7 @@
 
 ## Design principle
 
-Use the smallest architecture that demonstrates professional separation of concerns, relational modeling, reproducibility, traceable business rules, and payer quality analytics.
+Use the smallest architecture that demonstrates professional separation of concerns, relational modeling, reproducibility, traceable business rules, payer quality analytics, and independent Excel reconciliation.
 
 Active database schemas:
 
@@ -11,6 +11,7 @@ raw
 core
 ref
 measure
+analysis
 ```
 
 ## End-to-end flow
@@ -42,10 +43,23 @@ Synthetic Synthea source + deterministic FUH fixtures
                 v         v          v
           aggregate   reporting   open gaps
            summary      views
-                \         |          /
-                 +--------+---------+
+                 \        |        /
+                  +-------+-------+
                           |
-                   Excel / Power BI
+                          v
+                     analysis views
+                          |
+                          v
+                    Power Query
+                          |
+                          v
+               Excel formulas/pivots/charts
+                          |
+                          v
+                    reconciliation
+                          |
+                          v
+                    Power BI (Phase 5)
 ```
 
 ## Schema responsibilities
@@ -87,60 +101,20 @@ The implemented FUH-style configuration is explicitly HEDIS-oriented but not off
 
 ### `measure`
 
-Owns measure business logic and report-ready analytical outputs.
+Owns FUH-style business logic and report-ready analytical outputs.
 
-#### `measure.fuh_index_event_detail`
+Implemented objects include index-event detail, follow-up detail, final event results, aggregate summary, payer/month reporting, demographic reporting, timing distributions, and open-gap detail.
 
-Grain: one row per candidate inpatient behavioral-health index encounter/discharge.
+### `analysis`
 
-Responsibilities:
+Owns compact downstream analytical views designed for Excel and later reporting tools without duplicating large detail tables.
 
-- candidate identification;
-- typed behavioral-health diagnosis evidence;
-- age logic;
-- measurement-window logic;
-- payer-specific enrollment/benefit eligibility;
-- ineligibility reason;
-- source and fixture lineage.
+- `analysis.excel_encounter_activity` — payer × month × encounter-type aggregation; claims are pre-aggregated to encounter grain before joining;
+- `analysis.excel_member_data` — one row per member with non-identifying analytical dimensions;
+- `analysis.excel_fuh_data` — one row per authoritative FUH denominator event with Excel-friendly timing/gap classifications;
+- `analysis.excel_payer_lookup` — one row per payer for lookup/reference use.
 
-#### `measure.fuh_followup_event_detail`
-
-Grain: one row per eligible index event / qualifying follow-up encounter pair within day 0 through day 30.
-
-Responsibilities:
-
-- qualifying follow-up source/type/diagnosis evidence;
-- days from index;
-- same-day flag;
-- 7-day/30-day qualification flags;
-- source and fixture lineage.
-
-#### `measure.fuh_measure_result`
-
-Grain: one row per final denominator event.
-
-Responsibilities:
-
-- denominator flag;
-- deterministic earliest 7-day follow-up;
-- deterministic earliest 30-day follow-up;
-- numerator flags;
-- payer/demographic/source lineage.
-
-#### `measure.fuh_measure_summary`
-
-Grain: one row per population scope (`ALL`, `FIXTURE`, `NON_FIXTURE`).
-
-Responsibilities: denominator/numerators and safe decimal rates.
-
-#### Reporting views
-
-- `measure.fuh_report_payer_monthly`;
-- `measure.fuh_report_demographic`;
-- `measure.fuh_report_followup_timing`;
-- `measure.fuh_open_gap_detail`.
-
-These expose report-ready counts, rates, timing distributions, subgroup structures, and quality-gap detail while keeping authoritative numerator/denominator logic upstream.
+The `analysis` layer does not own FUH eligibility or numerator logic. It reuses `measure.fuh_measure_result` so business rules remain centralized.
 
 ## Business-logic ownership
 
@@ -151,31 +125,32 @@ These expose report-ready counts, rates, timing distributions, subgroup structur
 | relational healthcare model | SQL core |
 | measure configuration | SQL ref |
 | FUH-style eligibility/numerator logic | SQL measure |
-| analytical reporting | SQL measure |
-| independent reconciliation | Excel |
-| visualization/interactions | Power BI |
+| compact downstream analytical shaping | SQL analysis |
+| formulas, pivots, charts, independent reconciliation | Excel |
+| visualization/interactions | Power BI (Phase 5) |
 | assumptions/lineage/limitations | Markdown + SQL lineage fields |
 
 ## Reproducibility and lineage
 
-A report result can be traced through:
+A workbook result can be traced through:
 
 ```text
-report output
-  -> measure reporting view
-  -> measure.fuh_measure_result
-  -> index/follow-up detail
-  -> core entity
+Excel result
+  -> Power Query source
+  -> analysis view
+  -> measure/core entity
   -> raw source
   -> synthetic Synthea row or controlled fixture
 ```
 
-The measure configuration retains a fixed analysis date and methodology version. Measure views retain source IDs, source files, pipeline run IDs, and fixture flags where materially useful.
+FUH results additionally trace through the measure index/follow-up layers and fixed measure configuration.
 
 ## Performance design
 
-The Phase 3 logic uses `core.encounter`, `core.condition`, `core.enrollment_span`, and optional `core.claim` lineage. It does not scan `core.claim_transaction` because transaction-level detail is unnecessary for the implemented FUH-style qualification rule.
+Large detail tables stay in SQL Server. The Phase 4 encounter source is aggregated before reaching Excel, and `core.claim_transaction` remains in SQL because 5.2M+ transaction rows are not appropriate for a committed workbook.
+
+The encounter activity view avoids row multiplication by aggregating `core.claim` to encounter grain before joining to `core.encounter`.
 
 ## Known architectural limits
 
-The current source cannot support a trustworthy production-grade principal-diagnosis/readmission implementation. The project therefore does not infer one from claim position 1 or encounter reason fields. Pharmacy, physical-health integration, disability/cultural-factor analysis, and official HEDIS/regulatory functionality remain outside the implemented Phase 3 scope.
+The current source cannot support a trustworthy production-grade principal-diagnosis/readmission implementation. The project therefore does not infer one from claim position 1 or encounter reason fields. Pharmacy, physical-health integration, disability/cultural-factor analysis, official HEDIS/regulatory functionality, and Power BI reporting remain outside the implemented Phase 4 scope.

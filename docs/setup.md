@@ -39,10 +39,9 @@ healthcare-payer-analytics-pipeline
    - aggregate results;
    - payer/month, demographic, timing, and open-gap reporting;
    - executable QA and fixture acceptance testing;
-5. Excel reconciliation;
-6. Power BI reporting;
-7. Quality Performance milestone documentation/publication;
-8. later expanded payer-platform work where additional source domains are justified.
+5. Phase 4 Excel analysis layer + refreshable workbook + SQL-to-Excel reconciliation;
+6. Phase 5 Power BI reporting;
+7. later expanded payer-platform work where additional source domains are justified.
 
 ## Phase 3 execution order
 
@@ -70,6 +69,31 @@ denominator = 40
 7-day rate = 45.00%
 30-day rate = 80.00%
 ```
+
+## Phase 4 execution and refresh
+
+Run after Phase 3:
+
+```text
+sql/06_analysis/001_create_excel_analysis_views.sql
+sql/05_tests/008_validate_phase4_excel_analysis.sql
+```
+
+Expected Phase 4 SQL benchmarks:
+
+```text
+members = 5,671
+encounters = 313,094
+claims = 573,681
+FUH denominator = 40
+FUH 7-day numerator = 18
+FUH 30-day numerator = 32
+payers = 10
+```
+
+Then open `excel/healthcare_payer_analysis.xlsx` and select **Data -> Refresh All**. The local default SQL Server instance is reached as `localhost`; `MSSQLSERVER` is the default-instance service/instance name and is not entered as `localhost\MSSQLSERVER`.
+
+After refresh, confirm every row on `SQL_Reconciliation` has zero difference and `PASS` status.
 
 ## Important terminology
 

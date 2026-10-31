@@ -466,6 +466,70 @@ Outputs episode count, percent of denominator, and average follow-up timing wher
 
 The view retains member/index/payer/demographic/source lineage for audit and quality-improvement-oriented follow-up analysis.
 
+## `analysis.excel_encounter_activity`
+
+**Status:** implemented view.
+
+**Grain:** one row per payer / encounter month / encounter type.
+
+Key fields:
+
+- `payer_id`, `payer_name`, `payer_type`;
+- `encounter_month`, `encounter_year`, `encounter_month_number`;
+- `encounter_type`;
+- `encounter_count`;
+- grouped distinct `member_count`;
+- `claim_count`.
+
+`core.claim` is aggregated to encounter grain before joining so one-to-many claims cannot multiply encounter rows. `LEFT JOIN core.payer` preserves encounters with missing payer relationships. Grouped `member_count` is not additive across groups.
+
+## `analysis.excel_member_data`
+
+**Status:** implemented view.
+
+**Grain:** one row per member.
+
+Key fields:
+
+- `member_id`;
+- fixed `analysis_date`;
+- `age_as_of_analysis_date`;
+- `age_band`;
+- `sex`;
+- `county_code`;
+- `deceased_flag`;
+- `synthetic_fixture_flag`.
+
+The view intentionally excludes member names, birth dates, SSN-shaped values, driver's-license values, addresses, phones, and emails.
+
+## `analysis.excel_fuh_data`
+
+**Status:** implemented view.
+
+**Grain:** one row per final FUH-style denominator event.
+
+Key fields:
+
+- member/index/encounter/payer identifiers;
+- payer name/type;
+- index date;
+- age/age band/sex/county;
+- denominator, 7-day, and 30-day flags;
+- days-to-follow-up fields;
+- `followup_timing_band`;
+- `gap_status`;
+- `synthetic_fixture_flag`.
+
+The numerator/denominator flags come from `measure.fuh_measure_result`; the analysis view does not reimplement measure eligibility.
+
+## `analysis.excel_payer_lookup`
+
+**Status:** implemented view.
+
+**Grain:** one row per payer.
+
+Columns include payer ID, source payer ID, payer name, and payer type. This is the workbook lookup/reference source for VLOOKUP/XLOOKUP practice.
+
 ## Measure-layer limitation
 
 The measure layer does not implement principal-diagnosis-dependent readmission exclusions, official licensed value sets, pharmacy integration, physical-health integration, disability/cultural-factor analysis, or regulatory submission logic. Those capabilities are not supported by the current v0.1 source/specification package and are not manufactured in this portfolio layer.

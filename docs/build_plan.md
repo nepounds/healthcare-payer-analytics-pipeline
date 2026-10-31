@@ -43,52 +43,20 @@ Executable QA: `T-CORE-001` through `T-CORE-022`.
 
 The final closeout suite `007_validate_phase3_closeout.sql` passed `T-FUH-095` through `T-FUH-110`.
 
-### Implemented measure configuration
+Implemented Phase 3 objects include:
 
 - `ref.measure_definition`;
 - `ref.measure_value_set`;
-- fixed measurement-year/analysis-date configuration;
-- project-owned diagnosis and encounter-type reference rules;
-- explicit flags preventing the portfolio measure from being represented as official HEDIS.
-
-### Implemented FUH-style measure pipeline
-
-1. `measure.fuh_index_event_detail`
-   - candidate inpatient behavioral-health discharges;
-   - typed diagnosis evidence from `core.condition`;
-   - age and measurement-window logic;
-   - payer-specific continuous enrollment through day 30;
-   - medical and behavioral-health benefit requirements;
-   - explicit ineligibility reason;
-   - source/fixture lineage.
-
-2. `measure.fuh_followup_event_detail`
-   - qualifying ambulatory/outpatient follow-up events;
-   - typed behavioral-health diagnosis evidence;
-   - day-from-index calculation;
-   - same-day visibility with no numerator credit;
-   - 7-day and 30-day qualification flags;
-   - source/fixture lineage.
-
-3. `measure.fuh_measure_result`
-   - one row per final denominator event;
-   - deterministic earliest 7-day and 30-day qualifying follow-up;
-   - denominator and numerator flags;
-   - payer/demographic/source lineage.
-
-4. `measure.fuh_measure_summary`
-   - ALL, FIXTURE, and NON_FIXTURE scopes;
-   - denominator, 7-day numerator, 30-day numerator;
-   - safe decimal rates with `NULL` for a zero denominator.
-
-### Implemented analytical reporting
-
+- `measure.fuh_index_event_detail`;
+- `measure.fuh_followup_event_detail`;
+- `measure.fuh_measure_result`;
+- `measure.fuh_measure_summary`;
 - `measure.fuh_report_payer_monthly`;
 - `measure.fuh_report_demographic`;
 - `measure.fuh_report_followup_timing`;
 - `measure.fuh_open_gap_detail`.
 
-### Controlled acceptance benchmark
+Controlled acceptance benchmark:
 
 ```text
 denominator = 40
@@ -98,141 +66,110 @@ denominator = 40
 30-day rate = 80.00%
 ```
 
-### Explicit Phase 3 limitations
-
-The current implementation does not claim:
-
-- official NCQA HEDIS compliance or licensed value sets;
-- principal-diagnosis semantics from `core.claim_diagnosis` or encounter reason fields;
-- a readmission/transfer exclusion that requires trustworthy principal-diagnosis semantics;
-- pharmacy or physical-health integration;
-- disability/cultural-factor analysis;
-- regulatory submission capability.
+The current implementation does not claim official NCQA HEDIS compliance, licensed value sets, principal-diagnosis-based readmission/transfer exclusion logic, pharmacy/physical-health integration, disability/cultural-factor analysis, or regulatory submission capability.
 
 ## Phase 4 — Excel analytics, reconciliation, and SQL practice sandbox
 
-**Status: next.**
+**Status: complete and validated.**
 
-### Objective
+### Implemented SQL analysis layer
 
-Turn the existing SQL Server database into a reusable SQL + Excel practice environment while creating concrete portfolio evidence for Excel analysis skills.
+Phase 4 adds the `analysis` schema and four compact Excel-facing views:
 
-Phase 4 is intentionally not just a polished one-time workbook. The SQL database should remain useful for writing new joins and analysis queries, exporting results, testing formulas, building PivotTables, and reconciling Excel outputs back to SQL.
+- `analysis.excel_encounter_activity`;
+- `analysis.excel_member_data`;
+- `analysis.excel_fuh_data`;
+- `analysis.excel_payer_lookup`.
 
-### SQL deliverables
+The encounter view is aggregated at payer × month × encounter type. Claims are aggregated to one row per encounter before joining so the one-to-many relationship cannot multiply encounter rows. A `LEFT JOIN` to payer preserves unattributed encounters for full encounter reconciliation. The FUH view uses the authoritative Phase 3 measure result rather than rebuilding measure logic in Excel.
 
-Create a small Excel-facing analysis/export layer using the existing core and measure tables. Prefer a few useful queries/views over a large reporting mart.
+Executable Phase 4 SQL QA: `T-XL-001` through `T-XL-012`.
 
-Expected outputs include:
+Validated SQL totals:
 
-- member/encounter analysis detail built from relational joins;
-- payer/month summary data;
-- FUH-style event-level detail for Excel validation;
-- small lookup/reference extracts used by Excel formulas.
+```text
+members = 5,671
+encounters = 313,094
+claims = 573,681
+FUH denominator = 40
+FUH 7-day numerator = 18
+FUH 30-day numerator = 32
+payers = 10
+```
 
-The SQL work should provide additional practice with:
+### Implemented Excel workbook
 
-- inner and outer joins;
-- one-to-many relationships;
-- aggregation;
-- date logic;
-- missing-value handling;
-- reconciliation queries;
-- filtering and grouping across a large healthcare dataset.
+Committed artifact:
 
-### Excel workbook deliverables
+`excel/healthcare_payer_analysis.xlsx`
 
-Create one committed workbook under `excel/` with clearly labeled tabs for:
+Workbook sheets:
 
-- workbook instructions/source notes;
-- imported analysis data;
-- FUH-style measure data;
-- lookup/reference data;
-- formula practice;
-- PivotTable analysis;
-- charts;
-- SQL-to-Excel reconciliation.
+- `README`;
+- `Encounter_Data`;
+- `Member_Data`;
+- `FUH_Data`;
+- `Payer_Lookup`;
+- `Formula_Practice`;
+- `Pivot_Analysis`;
+- `Charts`;
+- `SQL_Reconciliation`.
 
-The workbook should demonstrate legitimate use of:
+SQL-backed tables are loaded through Power Query and can be refreshed with **Data -> Refresh All**.
 
-- `VLOOKUP`;
-- `XLOOKUP`;
-- `SUMIFS`;
-- `COUNTIFS`;
-- `IF` / `IFERROR` where useful;
-- Excel Tables and structured references;
-- PivotTables;
-- PivotCharts or standard charts;
-- filtering/sorting;
-- basic conditional formatting;
-- reconciliation controls.
+Implemented formula evidence:
 
-### Required PivotTables
+- VLOOKUP — payer ID to payer name;
+- XLOOKUP — payer ID to payer type;
+- IFERROR — lookup error handling;
+- SUMIFS — all-time encounters by payer and 2025 encounters by payer;
+- COUNTIFS — FUH 7-day/30-day numerator and gap checks;
+- IF — reconciliation/PASS-FAIL checks.
 
-At least three useful PivotTables, such as:
+Implemented PivotTables:
 
-1. encounter volume by payer and month;
-2. encounter volume by encounter/service type;
-3. FUH-style follow-up timing or demographic summary.
+1. encounter volume by payer and month using `SUM(encounter_count)`;
+2. encounter mix by encounter type and payer;
+3. FUH follow-up timing distribution with gender as an available filter.
 
-Do not invent fake payer variation in the controlled FUH fixtures merely to create a more interesting pivot.
+Implemented charts:
 
-### Required charts
+1. 2025 monthly encounter-volume line chart;
+2. stacked payer-mix-by-encounter-type chart;
+3. FUH follow-up timing distribution bar chart.
 
-At least three charts driven by the analysis, such as:
+### Excel reconciliation
 
-- monthly encounter-volume trend;
-- payer or encounter-setting volume comparison;
-- FUH-style follow-up timing distribution.
+The workbook independently recalculates six authoritative SQL totals.
 
-### Reconciliation requirement
+| Metric | SQL | Excel | Difference | Status |
+|---|---:|---:|---:|---|
+| Members | 5,671 | 5,671 | 0 | PASS |
+| Encounters | 313,094 | 313,094 | 0 | PASS |
+| Claims | 573,681 | 573,681 | 0 | PASS |
+| FUH denominator | 40 | 40 | 0 | PASS |
+| FUH 7-day numerator | 18 | 18 | 0 | PASS |
+| FUH 30-day numerator | 32 | 32 | 0 | PASS |
 
-Create an Excel reconciliation sheet that compares authoritative SQL totals with Excel-derived totals and displays the difference.
+Member reconciliation uses the one-row-per-member `Member_Data` source rather than summing grouped distinct-member counts from the encounter aggregation.
 
-At minimum reconcile:
+### Privacy, size, and refresh closeout
 
-- members;
-- encounters;
-- FUH denominator;
-- 7-day numerator;
-- 30-day numerator.
+- no names, SSNs, driver's-license values, street addresses, phone numbers, emails, or other unnecessary personal-looking fields are exported;
+- Excel document properties/personal information were removed with Document Inspector;
+- workbook reopened successfully after metadata removal;
+- Power Query refresh remained successful;
+- PivotTables/charts remained functional;
+- all reconciliation controls remained PASS;
+- final workbook size: approximately 12.8 KB.
 
-Expected clean differences are zero.
+### Reusability
 
-### Sandbox requirement
-
-Phase 4 must preserve the project as a reusable practice environment. The documentation should explain how to:
-
-1. write or modify a SQL analysis query;
-2. export or refresh the result;
-3. practice formulas/lookups against the exported data;
-4. build or modify PivotTables/charts;
-5. reconcile key totals back to SQL.
-
-The goal is to make continued SQL and Excel practice easy after the formal Phase 4 deliverables are complete.
-
-### Phase 4 definition of done
-
-Phase 4 is complete only when:
-
-1. Excel-facing SQL analysis/export queries exist and use meaningful relational joins.
-2. One documented Excel workbook is committed under `excel/`.
-3. `VLOOKUP` is used correctly in the workbook.
-4. `XLOOKUP` is used correctly in the workbook.
-5. `SUMIFS` and/or `COUNTIFS` are used correctly.
-6. At least three useful PivotTables exist.
-7. At least three useful charts exist.
-8. SQL-to-Excel reconciliation exists and clean totals reconcile to zero difference.
-9. Formula and reporting tabs use actual project data rather than made-up examples.
-10. The workbook is usable as an ongoing Excel practice sandbox.
-11. SQL export/reconciliation queries are documented and reproducible.
-12. README and skills documentation are updated from "planned" to "implemented" only after the workbook is validated.
-
-See `docs/phase4_excel_plan.md` for the working implementation plan.
+The SQL Server database remains the large-data query sandbox. New SQL exercises can use the existing core/measure objects without expanding the workbook. The Excel workbook remains a compact formula/PivotTable/chart/reconciliation sandbox and can refresh from the four `analysis` views.
 
 ## Phase 5 — Power BI reporting
 
-**Status: planned after Phase 4.**
+**Status: next.**
 
 Planned deliverables:
 
@@ -244,16 +181,6 @@ Planned deliverables:
 - presentation-oriented DAX where appropriate.
 
 Power BI should consume SQL-defined measure results rather than recreate eligibility and numerator logic independently.
-
-## Phase 6 — Portfolio release polish
-
-Planned deliverables:
-
-- refreshed public README;
-- screenshots of Excel and Power BI outputs;
-- simple run/refresh instructions;
-- final limitations;
-- clean Git history and public-repository check.
 
 ## Later — Expanded payer analytics platform
 
