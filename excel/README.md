@@ -49,4 +49,4 @@ The workbook intentionally excludes unnecessary personal-looking synthetic field
 
 ## Closeout
 
-The final workbook was inspected with Excel Document Inspector, document properties/personal information were removed, and the workbook was reopened and successfully refreshed afterward. Final size was approximately 12.8 KB.
+The final workbook was inspected with Excel Document Inspector, document properties/personal information were removed, and the workbook was reopened and successfully refreshed afterward. Final size was approximately 1.7 MB.
